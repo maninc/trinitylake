@@ -13,6 +13,7 @@ Lakehouse is the top level container.
 | order                                | uint32              | The order of the B-epsilon tree                                                                                | No        | 128           |
 | namespace_name_max_size_bytes        | uint32              | The maximum size of a namespace name in bytes                                                                  | No        | 100           |
 | table_name_max_size_bytes            | uint32              | The maximum size of a table name in bytes                                                                      | No        | 100           |
+| view_name_max_size_bytes             | uint32              | The maximum size of a view name in bytes                                                                       | No        | 100           |
 | file_name_max_size_bytes             | uint32              | The maximum size of a file name in bytes                                                                       | No        | 200           |
 | node_file_max_size_bytes             | uint64              | The maximum size of a node file in bytes                                                                       | No        | 1048576 (1MB) |
 | properties                           | map<string, string> | Free form user-defined key-value string properties                                                             | No        |               |

@@ -52,6 +52,7 @@ public class ObjectKeys {
   private static final int SCHEMA_ID_PART_SIZE = 4;
   private static final String NAMESPACE_SCHEMA_ID_PART = "B===";
   private static final String TABLE_SCHEMA_ID_PART = "C===";
+  private static final String VIEW_SCHEMA_ID_PART = "D===";
 
   private ObjectKeys() {}
 
@@ -134,5 +135,53 @@ public class ObjectKeys {
             == (SCHEMA_ID_PART_SIZE
                 + lakehouseDef.getNamespaceNameMaxSizeBytes()
                 + lakehouseDef.getTableNameMaxSizeBytes());
+  }
+
+  public static String viewKey(String namespaceName, String viewName, LakehouseDef lakehouseDef) {
+    ValidationUtil.checkNotNull(lakehouseDef, "Lakehouse definition must be provided");
+    ValidationUtil.checkNotNullOrEmptyString(namespaceName, "namespace name must be provided");
+    ValidationUtil.checkNotNullOrEmptyString(viewName, "view name must be provided");
+    ValidationUtil.checkArgument(
+        namespaceName.length() <= lakehouseDef.getNamespaceNameMaxSizeBytes(),
+        "namespace name %s must be less than or equal to %s in lakehouse definition",
+        namespaceName,
+        lakehouseDef.getNamespaceNameMaxSizeBytes());
+
+    ValidationUtil.checkArgument(
+        viewName.length() <= lakehouseDef.getViewNameMaxSizeBytes(),
+        "view name %s must be less than or equal to %s in lakehouse definition",
+        viewName,
+        lakehouseDef.getViewNameMaxSizeBytes());
+
+    StringBuilder sb = new StringBuilder();
+    sb.append(VIEW_SCHEMA_ID_PART);
+    sb.append(namespaceName);
+    for (int i = 0; i < lakehouseDef.getNamespaceNameMaxSizeBytes() - namespaceName.length(); i++) {
+      sb.append(' ');
+    }
+
+    sb.append(viewName);
+    for (int i = 0; i < lakehouseDef.getViewNameMaxSizeBytes() - viewName.length(); i++) {
+      sb.append(' ');
+    }
+
+    return sb.toString();
+  }
+
+  public static String viewNameFromKey(String viewKey, LakehouseDef lakehouseDef) {
+    ValidationUtil.checkArgument(isViewKey(viewKey, lakehouseDef), "Invalid view key: %s", viewKey);
+    return viewKey
+        .substring(SCHEMA_ID_PART_SIZE + lakehouseDef.getNamespaceNameMaxSizeBytes())
+        .trim();
+  }
+
+  public static boolean isViewKey(String key, LakehouseDef lakehouseDef) {
+    ValidationUtil.checkNotNull(lakehouseDef, "Lakehouse definition must be provided");
+    ValidationUtil.checkNotNullOrEmptyString(key, "key must be provided");
+    return key.startsWith(VIEW_SCHEMA_ID_PART)
+        && key.length()
+            == (SCHEMA_ID_PART_SIZE
+                + lakehouseDef.getNamespaceNameMaxSizeBytes()
+                + lakehouseDef.getViewNameMaxSizeBytes());
   }
 }

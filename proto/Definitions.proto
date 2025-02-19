@@ -9,13 +9,14 @@ message LakehouseDef {
   optional uint32 order = 3;
   optional uint32 namespace_name_max_size_bytes = 4;
   optional uint32 table_name_max_size_bytes = 5;
-  optional uint32 file_path_max_size_bytes = 6;
-  optional uint64 node_file_max_size_bytes = 7;
-  map<string, string> properties = 8;
-  optional uint64 maximum_version_age_millis = 9;
-  optional uint32 minimum_versions_to_keep = 10;
-  map<uint64, uint64> maximum_version_age_millis_overrides = 11;
-  map<string, string> exported_snapshots = 12;
+  optional uint32 view_name_max_size_bytes = 6;
+  optional uint32 file_path_max_size_bytes = 7;
+  optional uint64 node_file_max_size_bytes = 8;
+  map<string, string> properties = 9;
+  optional uint64 maximum_version_age_millis = 10;
+  optional uint32 minimum_versions_to_keep = 11;
+  map<uint64, uint64> maximum_version_age_millis_overrides = 12;
+  map<string, string> exported_snapshots = 13;
 }
 
 message NamespaceDef {
@@ -34,6 +35,19 @@ message TableDef {
   map<string, string> properties = 11;
 }
 
+message ViewDef {
+  bool schema_binding = 2;
+  Schema schema = 3;
+  repeated SQLRepresentation sql_representations = 4;
+  repeated Identifier referenced_object_ids = 5;
+  map<string, string> properties = 6;
+}
+
+message Identifier {
+  string namespace_name = 1;
+  string name = 2;
+}
+
 message Schema {
   repeated Column columns = 1;
 }
@@ -48,6 +62,12 @@ message Column {
   optional Column map_key = 7;
   optional Column map_value = 8;
   optional Column list_element = 9;
+}
+
+message SQLRepresentation {
+  string type = 1;
+  string sql = 2;
+  string dialect = 3;
 }
 
 enum DataType {

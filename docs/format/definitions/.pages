@@ -3,3 +3,4 @@ nav:
     - lakehouse.md
     - namespace.md
     - table
+    - view.md
