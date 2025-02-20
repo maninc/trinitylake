@@ -27,5 +27,7 @@ public interface RunningTransaction {
 
   long beganAtMillis();
 
+  long expireAtMillis();
+
   IsolationLevel isolationLevel();
 }

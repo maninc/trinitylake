@@ -26,6 +26,15 @@ Users can perform time travel to get a consistent view of all the objects in the
 rollback the Lakehouse to a consistent previous state,
 or choose to export a snapshot of the entire Lakehouse at any given point of time.
 
+### Distributed Transaction for Advanced Write-Audit-Publish
+
+A TrinityLake transaction can be executed not just by a single process, 
+but can be distributed around multiple processes.
+This could be used for workflows like write-audit-publish, 
+where a writer process can first perform a few transactions,
+and pass it to an auditor process to review the operations and make adjustments,
+and eventually pass it to a publisher process to commit all changes together.
+
 ### Storage Only
 
 TrinityLake mainly leverages one storage primitive - mutual exclusion of file creation.

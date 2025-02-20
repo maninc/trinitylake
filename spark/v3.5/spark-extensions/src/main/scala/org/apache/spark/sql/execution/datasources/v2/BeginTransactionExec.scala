@@ -26,9 +26,8 @@ case class BeginTransactionExec() extends LeafV2CommandExec {
     session.sessionState.catalogManager.currentCatalog match {
       case catalog: TrinityLakeSparkCatalog => {
         // TODO: pass in options from SQL command
-        val transaction = TrinityLake.beginTransaction(
-          catalog.lakehouseStorage,
-          catalog.transactionOptions.asStringMap)
+        val transaction =
+          TrinityLake.beginTransaction(catalog.lakehouseStorage, catalog.sparkOptions)
         catalog.setGlobalTransaction(transaction)
       }
       case _ =>

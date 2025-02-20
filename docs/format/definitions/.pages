@@ -4,3 +4,4 @@ nav:
     - namespace.md
     - table
     - view.md
+    - transaction.md

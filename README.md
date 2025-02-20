@@ -10,6 +10,7 @@ The TrinityLake format defines the objects in a Lakehouse and provides a consist
 accessing and manipulating these objects. It offers the following key features:
 - **Multi-object multi-statement transactions** with standard SQL `BEGIN` and `COMMIT` semantics
 - **Consistent time travel and snapshot export** across all objects in the Lakehouse
+- **Distributed transactions** which can enable complicated workflows for use cases like write-audit-publish
 - **Storage only** as a Lakehouse solution that works exactly the same way locally, on premise and in the cloud
 - **Compatibility with open table formats** like Apache Iceberg, supporting both standard SQL `MANAGED` and `EXTERNAL` as well as federation-based access patterns.
 - **Compatibility with open catalog standards** like Apache Iceberg REST Catalog specification, serving as a highly scalable yet extremely lightweight backend implementation

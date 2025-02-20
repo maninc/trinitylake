@@ -18,6 +18,7 @@ import io.trinitylake.exception.StorageWriteFailureException;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
 import io.trinitylake.models.TableDef;
+import io.trinitylake.models.TransactionDef;
 import io.trinitylake.models.ViewDef;
 import io.trinitylake.storage.LakehouseStorage;
 import java.io.IOException;
@@ -130,6 +131,32 @@ public class ObjectDefinitions {
     } catch (IOException e) {
       throw new StorageReadFailureException(
           e, "Failed to read view definition from storage path %s at %s", path, storage.root());
+    }
+  }
+
+  public static void writeTransactionDef(
+      LakehouseStorage storage, String path, TransactionDef transactionDef) {
+    try (OutputStream stream = storage.startCommit(path)) {
+      transactionDef.writeTo(stream);
+    } catch (IOException e) {
+      throw new StorageWriteFailureException(
+          e,
+          "Failed to write transaction %s definition to storage path %s at %s",
+          transactionDef.getId(),
+          path,
+          storage.root());
+    }
+  }
+
+  public static TransactionDef readTransactionDef(LakehouseStorage storage, String path) {
+    try (InputStream stream = storage.startRead(path)) {
+      return TransactionDef.parseFrom(stream);
+    } catch (IOException e) {
+      throw new StorageReadFailureException(
+          e,
+          "Failed to read transaction definition from storage path %s at %s",
+          path,
+          storage.root());
     }
   }
 }

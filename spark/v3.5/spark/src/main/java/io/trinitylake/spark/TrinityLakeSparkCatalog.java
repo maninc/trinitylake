@@ -14,11 +14,11 @@
 package io.trinitylake.spark;
 
 import io.trinitylake.RunningTransaction;
-import io.trinitylake.TransactionOptions;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.NamespaceDef;
+import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
 import io.trinitylake.storage.LakehouseStorage;
 import io.trinitylake.storage.LakehouseStorages;
 import java.util.List;
@@ -52,7 +52,7 @@ public class TrinityLakeSparkCatalog implements StagingTableCatalog, SupportsNam
   private String[] defaultNamespace = null;
   private SparkSession sparkSession;
   private LakehouseStorage storage;
-  private TransactionOptions transactionOptions;
+  private Map<String, String> sparkOptions;
   private Optional<RunningTransaction> globalTransaction;
 
   public TrinityLakeSparkCatalog() {}
@@ -296,15 +296,15 @@ public class TrinityLakeSparkCatalog implements StagingTableCatalog, SupportsNam
     }
 
     this.storage = LakehouseStorages.initialize(options);
-    this.transactionOptions = new TransactionOptions(options);
+    this.sparkOptions = ImmutableMap.copyOf(options);
   }
 
   public LakehouseStorage lakehouseStorage() {
     return storage;
   }
 
-  public TransactionOptions transactionOptions() {
-    return transactionOptions;
+  public Map<String, String> sparkOptions() {
+    return sparkOptions;
   }
 
   public void setGlobalTransaction(RunningTransaction globalTransaction) {
@@ -320,7 +320,6 @@ public class TrinityLakeSparkCatalog implements StagingTableCatalog, SupportsNam
   }
 
   private RunningTransaction currentTransaction() {
-    return globalTransaction.orElseGet(
-        () -> TrinityLake.beginTransaction(storage, transactionOptions.asStringMap()));
+    return globalTransaction.orElseGet(() -> TrinityLake.beginTransaction(storage, sparkOptions));
   }
 }

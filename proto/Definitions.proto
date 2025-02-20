@@ -5,45 +5,59 @@ option java_multiple_files = true;
 package io.trinitylake.models;
 
 message LakehouseDef {
+  string id = 1;
   uint32 major_version = 2;
-  optional uint32 order = 3;
-  optional uint32 namespace_name_max_size_bytes = 4;
-  optional uint32 table_name_max_size_bytes = 5;
-  optional uint32 view_name_max_size_bytes = 6;
-  optional uint32 file_path_max_size_bytes = 7;
-  optional uint64 node_file_max_size_bytes = 8;
+  uint32 order = 3;
+  uint32 namespace_name_max_size_bytes = 4;
+  uint32 table_name_max_size_bytes = 5;
+  uint32 view_name_max_size_bytes = 6;
+  uint32 file_path_max_size_bytes = 7;
+  uint64 node_file_max_size_bytes = 8;
   map<string, string> properties = 9;
-  optional uint64 maximum_version_age_millis = 10;
-  optional uint32 minimum_versions_to_keep = 11;
+  uint64 maximum_version_age_millis = 10;
+  uint32 minimum_versions_to_keep = 11;
   map<uint64, uint64> maximum_version_age_millis_overrides = 12;
   map<string, string> exported_snapshots = 13;
+  uint64 txn_valid_millis = 14;
 }
 
 message NamespaceDef {
+  string id = 1;
   map<string, string> properties = 2;
 }
 
 message TableDef {
+  string id = 1;
   Schema schema = 2;
   repeated uint32 distribution_keys = 3;
   repeated uint32 primary_keys = 4;
   repeated uint32 sort_keys = 5;
   repeated uint32 unique_columns = 6;
-  optional string table_type = 8;
-  string table_format = 9;
-  map<string, string> format_properties = 10;
-  map<string, string> properties = 11;
+  string table_type = 7;
+  string table_format = 8;
+  map<string, string> format_properties = 9;
+  map<string, string> properties = 10;
 }
 
 message ViewDef {
+  string id = 1;
   bool schema_binding = 2;
   Schema schema = 3;
   repeated SQLRepresentation sql_representations = 4;
-  repeated Identifier referenced_object_ids = 5;
+  repeated FullName referenced_object_full_names = 5;
   map<string, string> properties = 6;
 }
 
-message Identifier {
+message TransactionDef {
+  string id = 1;
+  IsolationLevel isolation_level = 2;
+  string beginning_root_node_file_path = 3;
+  string running_root_node_file_path = 4;
+  uint64 began_at_millis = 5;
+  uint64 expire_at_millis = 6;
+}
+
+message FullName {
   string namespace_name = 1;
   string name = 2;
 }
@@ -59,9 +73,9 @@ message Column {
   bool nullable = 4;
   map<string, string> properties = 5;
   repeated Column struct_fields = 6;
-  optional Column map_key = 7;
-  optional Column map_value = 8;
-  optional Column list_element = 9;
+  Column map_key = 7;
+  Column map_value = 8;
+  Column list_element = 9;
 }
 
 message SQLRepresentation {
@@ -81,13 +95,26 @@ enum DataType {
   CHAR = 7;
   VARCHAR = 8;
   DATE = 9;
-  TIME = 10;
-  TIMETZ = 11;
-  TIMESTAMP = 12;
-  TIMESTAMPTZ = 13;
-  FIXED = 14;
-  BINARY = 15;
-  STRUCT = 16;
-  MAP = 17;
-  LIST = 18;
+  TIME3 = 10;
+  TIME6 = 11;
+  TIME9 = 12;
+  TIMETZ3 = 13;
+  TIMETZ6 = 14;
+  TIMETZ9 = 15;
+  TIMESTAMP3 = 16;
+  TIMESTAMP6 = 17;
+  TIMESTAMP9 = 18;
+  TIMESTAMPTZ3 = 19;
+  TIMESTAMPTZ6 = 20;
+  TIMESTAMPTZ9 = 21;
+  FIXED = 22;
+  BINARY = 23;
+  STRUCT = 24;
+  MAP = 25;
+  LIST = 26;
+}
+
+enum IsolationLevel {
+  SNAPSHOT = 0;
+  SERIALIZABLE = 1;
 }

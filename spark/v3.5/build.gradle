@@ -27,6 +27,7 @@ project(":trinitylake-spark:trinitylake-spark-${sparkMajorVersion}_${scalaVersio
 
     dependencies {
         implementation project(':trinitylake-core')
+        implementation project(path: ':trinitylake-bundled-guava', configuration: 'shadow')
         implementation("org.scala-lang.modules:scala-collection-compat_${scalaVersion}:${libs.versions.scala.collection.compat.get()}")
         if (scalaVersion == '2.12') {
             // scala-collection-compat_2.12 pulls scala 2.12.17 and we need 2.12.18 for JDK 21 support

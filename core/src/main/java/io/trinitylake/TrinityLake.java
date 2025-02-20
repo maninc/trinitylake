@@ -19,6 +19,7 @@ import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
 import io.trinitylake.models.TableDef;
+import io.trinitylake.models.TransactionDef;
 import io.trinitylake.models.ViewDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
 import io.trinitylake.storage.LakehouseStorage;
@@ -30,7 +31,6 @@ import io.trinitylake.util.ValidationUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class TrinityLake {
@@ -55,10 +55,13 @@ public class TrinityLake {
   public static RunningTransaction beginTransaction(
       LakehouseStorage storage, Map<String, String> options) {
     TreeRoot current = TreeOperations.findLatestRoot(storage);
-    TransactionOptions transactionOptions = new TransactionOptions(options);
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, current);
+    TransactionOptions transactionOptions = new TransactionOptions(lakehouseDef, options);
+    long currentTimeMillis = System.currentTimeMillis();
     return ImmutableRunningTransaction.builder()
-        .beganAtMillis(System.currentTimeMillis())
-        .transactionId(UUID.randomUUID().toString())
+        .beganAtMillis(currentTimeMillis)
+        .expireAtMillis(currentTimeMillis + transactionOptions.txnValidMillis())
+        .transactionId(transactionOptions.txnId())
         .beginningRoot(current)
         .runningRoot(current)
         .isolationLevel(transactionOptions.isolationLevel())
@@ -85,6 +88,42 @@ public class TrinityLake {
     return ImmutableCommittedTransaction.builder()
         .committedRoot(transaction.runningRoot())
         .transactionId(transaction.transactionId())
+        .build();
+  }
+
+  public static String saveTransaction(LakehouseStorage storage, RunningTransaction transaction) {
+    String runningRootNodeFilePath = FileLocations.newNodeFilePath();
+    TreeOperations.writeRootNodeFile(storage, runningRootNodeFilePath, transaction.runningRoot());
+    TransactionDef transactionDef =
+        TransactionDef.newBuilder()
+            .setId(transaction.transactionId())
+            .setIsolationLevel(
+                io.trinitylake.models.IsolationLevel.valueOf(transaction.isolationLevel().name()))
+            .setBeginningRootNodeFilePath(transaction.beginningRoot().path().get())
+            .setRunningRootNodeFilePath(runningRootNodeFilePath)
+            .setBeganAtMillis(transaction.beganAtMillis())
+            .setExpireAtMillis(transaction.expireAtMillis())
+            .build();
+    String transactionDefFilePath = FileLocations.newTransactionDefFilePath(transaction);
+    ObjectDefinitions.writeTransactionDef(storage, transactionDefFilePath, transactionDef);
+    return transactionDefFilePath;
+  }
+
+  public static RunningTransaction loadTransaction(
+      LakehouseStorage storage, String transactionDefFilePath) {
+    TransactionDef transactionDef =
+        ObjectDefinitions.readTransactionDef(storage, transactionDefFilePath);
+    TreeRoot beginningRoot =
+        TreeOperations.readRootNodeFile(storage, transactionDef.getBeginningRootNodeFilePath());
+    TreeRoot runningRoot =
+        TreeOperations.readRootNodeFile(storage, transactionDef.getRunningRootNodeFilePath());
+    return ImmutableRunningTransaction.builder()
+        .transactionId(transactionDef.getId())
+        .beginningRoot(beginningRoot)
+        .runningRoot(runningRoot)
+        .beganAtMillis(transactionDef.getBeganAtMillis())
+        .expireAtMillis(transactionDef.getExpireAtMillis())
+        .isolationLevel(IsolationLevel.valueOf(transactionDef.getIsolationLevel().name()))
         .build();
   }
 

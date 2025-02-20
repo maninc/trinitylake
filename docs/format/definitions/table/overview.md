@@ -1,6 +1,6 @@
 # Overview
 
-A table is a collection of related data organized in tabular format; consisting of columns and rows.
+A table is a [tabular object](../overview.md#traits) that represents a collection of related data.
 
 ## Object Definition Schema
 

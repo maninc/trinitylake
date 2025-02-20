@@ -23,6 +23,12 @@ users can choose to set the isolation level to SNAPSHOT ISOLATION or SERIALIZABL
 Using SERIALIZABLE would ensure fully serial transaction history, 
 but reducing the transaction throughput of the whole Trinity lakehouse.
 
+!!!note
+
+    It is possible to define and implement lower isolation level for TrinityLake.
+    However, this is currently not a priority of the project.
+    If you are interested in exploring such support, please feel free to publish a design proposal!
+
 ## Commit Conflict Resolution Strategy
 
 When there is a concurrent transaction commit failure, the failing transaction that started at version `v` should do the following:

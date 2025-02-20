@@ -1,8 +1,6 @@
 # View
 
-A view is a transformation applied to tabular objects.
-A tabular object is a structured data representation with named columns and rows.
-Tables and views are tabular objects in TrinityLake.
+A view is a [tabular object](./overview.md#traits) that represents a transformation applied to a set of tabular objects.
 
 ## Object Definition Schema
 
