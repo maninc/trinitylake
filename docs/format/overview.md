@@ -24,11 +24,11 @@ and call a lakehouse implemented using the TrinityLake format as a **Trinity Lak
 
 The TrinityLake format contains the following specifications:
 
-- The TrinityLake tree is persisted in storage following [Storage Layout Specification](./storage-layout).
-- The files in a TrinityLake tree are stored according to the [Storage Location Specification](./storage-location).
-- The TrinityLake tree is assessed and updated following the [Transaction Specification](./storage-transaction).
+- The TrinityLake tree is persisted in storage following [Storage Layout Specification](./storage-layout.md).
+- The files in a TrinityLake tree are stored according to the [Storage Location Specification](./storage-location.md).
+- The TrinityLake tree is assessed and updated following the [Transaction Specification](./storage-transaction.md).
 - The keys in a TrinityLake tree follow the [Key Encoding Specification](./key-encoding.md).
-- The object definitions in a TrinityLake tree follow the [Object Definition File Specification](definitions/overview).
+- The object definitions in a TrinityLake tree follow the [Object Definition File Specification](definitions/overview.md).
 
 ## Example
 
