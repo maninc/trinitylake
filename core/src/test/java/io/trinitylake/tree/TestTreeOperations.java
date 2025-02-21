@@ -42,12 +42,12 @@ public class TestTreeOperations {
     treeRoot.setRollbackFromRootNodeFilePath("some/path/to/rollback/from/root");
     treeRoot.setLakehouseDefFilePath("some/path/to/lakehouse/def");
 
-    File file = tempDir.resolve("testWriteReadRootNodeFile.ipc").toFile();
+    File file = tempDir.resolve("testWriteReadRootNodeFile.arrow").toFile();
 
-    TreeOperations.writeRootNodeFile(storage, "testWriteReadRootNodeFile.ipc", treeRoot);
+    TreeOperations.writeRootNodeFile(storage, "testWriteReadRootNodeFile.arrow", treeRoot);
     assertThat(file.exists()).isTrue();
 
-    TreeRoot root = TreeOperations.readRootNodeFile(storage, "testWriteReadRootNodeFile.ipc");
+    TreeRoot root = TreeOperations.readRootNodeFile(storage, "testWriteReadRootNodeFile.arrow");
     assertThat(
             treeRoot.nodeKeyTable().stream()
                 .collect(Collectors.toMap(NodeKeyTableRow::key, NodeKeyTableRow::value)))

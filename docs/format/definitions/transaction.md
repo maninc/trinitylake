@@ -1,6 +1,7 @@
 # Transaction
 
 A transaction object in a Lakehouse represents a temporary state of the Lakehouse that is not committed yet.
+This object is used for distributed transaction where a transaction needs to be passed from one process to another before commit.
 
 ## Object Definition Schema
 

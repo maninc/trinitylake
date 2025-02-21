@@ -21,7 +21,7 @@ Lakehouse is the top level container.
 | minimum_versions_to_keep             | uint32              | The minimum number of versions to keep                                                                         | No        | 3                  |
 | maximum_version_age_millis_overrides | map<uint64, uint64> | The mapping of versions to their maximum age before expiration, if different from `maximum_version_age_millis` | No        |                    |
 | exported_snapshots                   | map<string, string> | The mapping of snapshot export name and corresponding root node file location                                  | No        |                    |
-| txn_valid_millis                     | uint32              | The maximum time duration that a transaction is valid after began in millisecond                               | No        | 604800000 (7 days) |
+| txn_ttl_millis                       | uint64              | The maximum time duration that a transaction is valid after began in millisecond                               | No        | 604800000 (7 days) |
 
 !!!Note
 

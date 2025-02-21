@@ -35,6 +35,7 @@ This feature is widely available in most storage systems, for examples:
 - On Amazon DynamoDB through [conditional PutItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html)
 - On Google Cloud Storage through [IF-NONE-MATCH](https://cloud.google.com/storage/docs/xml-api/reference-headers#ifnonematch)
 - On Azure Data Lake Storage through [IF-NONE-MATCH](https://learn.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
+- On Redis/Valkey through [SET NX](https://valkey.io/commands/set/)
 
 ### Consistency
 

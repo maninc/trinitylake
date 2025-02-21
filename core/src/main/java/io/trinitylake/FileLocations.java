@@ -24,23 +24,36 @@ import java.util.regex.Pattern;
 public class FileLocations {
 
   public static final String LATEST_VERSION_HINT_FILE_PATH = "_latest_hint.txt";
+
   public static final String LAKEHOUSE_DEF_FILE_PATH_PREFIX = "_lakehouse_def_";
+
   public static final String PROTOBUF_BINARY_FILE_SUFFIX = ".binpb";
 
-  // underscore + 64 binary bits + .ipc suffix
-  private static final String ARROW_FILE_SUFFIX = ".arrow";
+  public static final String ARROW_FILE_SUFFIX = ".arrow";
+
   private static final String ARROW_FILE_SUFFIX_REVERSED = "worra.";
+
   private static final int ARROW_FILE_SUFFIX_LENGTH = ARROW_FILE_SUFFIX.length();
+
   private static final int ROOT_NODE_FILE_VERSION_BINARY_LENGTH = 64;
+
   private static final int ROOT_NODE_FILE_PATH_LENGTH =
       ROOT_NODE_FILE_VERSION_BINARY_LENGTH + ARROW_FILE_SUFFIX_LENGTH + 1;
+
   private static final Pattern ROOT_NODE_FILE_PATH_PATTERN = Pattern.compile("^_[01]{64}\\.arrow$");
 
+  private static final String TRANSACTION_DEF_FILE_PREFIX = "txn";
+
+  private static final String NODE_FILE_PREFIX = "node";
+
   private static final HashFunction HASH_FUNC = Hashing.murmur3_32_fixed();
+
   // Length of entropy generated in the file path
   private static final int HASH_BINARY_STRING_BITS = 20;
+
   // Entropy generated will be divided into dirs with this lengths
   private static final int ENTROPY_DIR_LENGTH = 4;
+
   // Entropy generated will be divided into this number of directories
   private static final int ENTROPY_DIR_DEPTH = 3;
 
@@ -89,11 +102,12 @@ public class FileLocations {
 
   public static String newTransactionDefFilePath(RunningTransaction transaction) {
     return generateOptimizedFilePath(
-        PROTOBUF_BINARY_FILE_SUFFIX, "txn", transaction.transactionId());
+        PROTOBUF_BINARY_FILE_SUFFIX, TRANSACTION_DEF_FILE_PREFIX, transaction.transactionId());
   }
 
   public static String newNodeFilePath() {
-    return generateOptimizedFilePath(ARROW_FILE_SUFFIX, "node", UUID.randomUUID().toString());
+    return generateOptimizedFilePath(
+        ARROW_FILE_SUFFIX, NODE_FILE_PREFIX, UUID.randomUUID().toString());
   }
 
   private static String generateOptimizedFilePath(String suffix, String... parts) {

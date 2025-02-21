@@ -13,6 +13,7 @@
  */
 package io.trinitylake;
 
+import io.trinitylake.models.IsolationLevel;
 import io.trinitylake.tree.TreeRoot;
 import org.immutables.value.Value;
 

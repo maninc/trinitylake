@@ -97,8 +97,7 @@ public class TrinityLake {
     TransactionDef transactionDef =
         TransactionDef.newBuilder()
             .setId(transaction.transactionId())
-            .setIsolationLevel(
-                io.trinitylake.models.IsolationLevel.valueOf(transaction.isolationLevel().name()))
+            .setIsolationLevel(transaction.isolationLevel())
             .setBeginningRootNodeFilePath(transaction.beginningRoot().path().get())
             .setRunningRootNodeFilePath(runningRootNodeFilePath)
             .setBeganAtMillis(transaction.beganAtMillis())
@@ -123,7 +122,7 @@ public class TrinityLake {
         .runningRoot(runningRoot)
         .beganAtMillis(transactionDef.getBeganAtMillis())
         .expireAtMillis(transactionDef.getExpireAtMillis())
-        .isolationLevel(IsolationLevel.valueOf(transactionDef.getIsolationLevel().name()))
+        .isolationLevel(transactionDef.getIsolationLevel())
         .build();
   }
 

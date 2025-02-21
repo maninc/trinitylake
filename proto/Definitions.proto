@@ -14,11 +14,12 @@ message LakehouseDef {
   uint32 file_path_max_size_bytes = 7;
   uint64 node_file_max_size_bytes = 8;
   map<string, string> properties = 9;
-  uint64 maximum_version_age_millis = 10;
-  uint32 minimum_versions_to_keep = 11;
-  map<uint64, uint64> maximum_version_age_millis_overrides = 12;
-  map<string, string> exported_snapshots = 13;
-  uint64 txn_valid_millis = 14;
+  uint64 version_age_max_millis = 10;
+  uint32 versions_to_keep_min = 11;
+  map<uint64, uint64> version_age_max_millis_overrides = 12;
+  map<string, string> snapshots = 13;
+  uint64 txn_ttl_default_millis = 14;
+  IsolationLevel txn_isolation_level_default = 15;
 }
 
 message NamespaceDef {

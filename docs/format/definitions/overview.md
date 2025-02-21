@@ -24,7 +24,6 @@ Each type of object could have different traits. Currently TrinityLake objects c
 | Assignable | Another object can be assigned to belong to this object                                                      | Namespace   |
 | Tabular    | An object that presents data in the form of multiple rows where each row contains the same number of columns | Table, View |
 
-
 ## File Format
 
 The exact definition of each object is serialized into protobuf streams binary files, suffixed with `.binpb`.

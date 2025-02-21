@@ -1,4 +1,9 @@
 nav:
     - index.md
     - format
-    - join-us.md
+    - storage
+    - catalog
+    - spark
+    - community.md
+    - roadmap.md
+    - faq.md

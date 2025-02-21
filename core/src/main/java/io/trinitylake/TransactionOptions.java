@@ -13,6 +13,7 @@
  */
 package io.trinitylake;
 
+import io.trinitylake.models.IsolationLevel;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableSet;
 import io.trinitylake.util.PropertyUtil;
@@ -24,27 +25,27 @@ import java.util.UUID;
 public class TransactionOptions implements StringMapBased {
 
   public static final String ISOLATION_LEVEL = "isolation-level";
-  public static final String ISOLATION_LEVEL_DEFAULT = "snapshot";
-  public static final String TXN_ID = "txn-id";
-  public static final String TXN_VALID_MILLIS = "txn-valid-millis";
+  public static final String ID = "id";
+  public static final String TTL_MILLIS = "ttl-millis";
 
   public static final Set<String> OPTIONS =
-      ImmutableSet.<String>builder().add(ISOLATION_LEVEL).add(TXN_ID).add(TXN_VALID_MILLIS).build();
+      ImmutableSet.<String>builder().add(ISOLATION_LEVEL).add(ID).add(TTL_MILLIS).build();
 
   private final Map<String, String> options;
   private final IsolationLevel isolationLevel;
-  private final String txnId;
-  private final long txnValidMillis;
+  private final String id;
+  private final long ttlMillis;
 
   public TransactionOptions(LakehouseDef lakehouseDef, Map<String, String> options) {
     this.options = PropertyUtil.filterProperties(options, OPTIONS::contains);
     this.isolationLevel =
-        IsolationLevel.valueOf(
-            PropertyUtil.propertyAsString(options, ISOLATION_LEVEL, ISOLATION_LEVEL_DEFAULT)
-                .toUpperCase(Locale.ENGLISH));
-    this.txnId = PropertyUtil.propertyAsString(options, TXN_ID, UUID.randomUUID().toString());
-    this.txnValidMillis =
-        PropertyUtil.propertyAsLong(options, TXN_VALID_MILLIS, lakehouseDef.getTxnValidMillis());
+        options.containsKey(ISOLATION_LEVEL)
+            ? IsolationLevel.valueOf(options.get(ISOLATION_LEVEL).toUpperCase(Locale.ENGLISH))
+            : lakehouseDef.getTxnIsolationLevelDefault();
+    // auto generate UUID if not specified
+    this.id = PropertyUtil.propertyAsString(options, ID, UUID.randomUUID().toString());
+    this.ttlMillis =
+        PropertyUtil.propertyAsLong(options, TTL_MILLIS, lakehouseDef.getTxnTtlDefaultMillis());
   }
 
   @Override
@@ -57,10 +58,10 @@ public class TransactionOptions implements StringMapBased {
   }
 
   public String txnId() {
-    return txnId;
+    return id;
   }
 
   public long txnValidMillis() {
-    return txnValidMillis;
+    return ttlMillis;
   }
 }
