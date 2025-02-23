@@ -99,4 +99,20 @@ public class TestFileLocations {
                 + 36
                 + FileLocations.PROTOBUF_BINARY_FILE_SUFFIX.length());
   }
+
+  @Test
+  public void testViewDefFilePath() {
+    assertThat(FileLocations.newViewDefFilePath("ns1", "v1"))
+        .contains("view")
+        .contains("ns1")
+        .contains("v1")
+        .endsWith(FileLocations.PROTOBUF_BINARY_FILE_SUFFIX)
+        .hasSize(
+            23
+                + "-view-".length()
+                + "ns1-".length()
+                + "v1-".length()
+                + 36
+                + FileLocations.PROTOBUF_BINARY_FILE_SUFFIX.length());
+  }
 }

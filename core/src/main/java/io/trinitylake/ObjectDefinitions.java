@@ -111,7 +111,7 @@ public class ObjectDefinitions {
       String path,
       String namespaceName,
       String viewName,
-      TableDef viewDef) {
+      ViewDef viewDef) {
     try (OutputStream stream = storage.startCommit(path)) {
       viewDef.writeTo(stream);
     } catch (IOException e) {

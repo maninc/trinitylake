@@ -42,6 +42,8 @@ public class FileLocations {
 
   private static final Pattern ROOT_NODE_FILE_PATH_PATTERN = Pattern.compile("^_[01]{64}\\.arrow$");
 
+  private static final String VIEW_DEF_FILE_PREFIX = "view";
+
   private static final String TRANSACTION_DEF_FILE_PREFIX = "txn";
 
   private static final String NODE_FILE_PREFIX = "node";
@@ -98,6 +100,15 @@ public class FileLocations {
   public static String newTableDefFilePath(String namespaceName, String tableName) {
     return generateOptimizedFilePath(
         PROTOBUF_BINARY_FILE_SUFFIX, namespaceName, tableName, UUID.randomUUID().toString());
+  }
+
+  public static String newViewDefFilePath(String namespaceName, String viewName) {
+    return generateOptimizedFilePath(
+        PROTOBUF_BINARY_FILE_SUFFIX,
+        VIEW_DEF_FILE_PREFIX,
+        namespaceName,
+        viewName,
+        UUID.randomUUID().toString());
   }
 
   public static String newTransactionDefFilePath(RunningTransaction transaction) {
