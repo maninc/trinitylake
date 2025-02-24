@@ -25,7 +25,7 @@ public class LakehouseStorages {
   public static final String STORAGE_TYPE_S3 = "s3";
   public static final String STORAGE_TYPE_DEFAULT = STORAGE_TYPE_LOCAL;
 
-  public static final String STORAGE_ROT = "storage.root";
+  public static final String STORAGE_ROOT = "storage.root";
 
   private static final Map<String, String> STORAGE_TYPE_TO_IMPL =
       ImmutableMap.<String, String>builder()
@@ -36,7 +36,7 @@ public class LakehouseStorages {
   private LakehouseStorages() {}
 
   public static LakehouseStorage initialize(Map<String, String> properties) {
-    LiteralURI storageRoot = new LiteralURI(properties.get(STORAGE_ROT));
+    LiteralURI storageRoot = new LiteralURI(properties.get(STORAGE_ROOT));
     StorageOps storageOps = initializeStorageOps(properties);
     return new BasicLakehouseStorage(storageRoot, storageOps);
   }

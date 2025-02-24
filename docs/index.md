@@ -9,7 +9,7 @@ title: Welcome
 ## Introduction
 
 TrinityLake is an **Open Lakehouse Format** for Big Data Analytics, ML & AI. 
-It allows anyone to build a fully functional lakehouse with storage (e.g. Amazon S3) as the only dependency.
+It allows anyone to build a fully functional lakehouse with storage (e.g. S3, HDFS) as the only dependency.
 
 The TrinityLake format defines different objects in a lakehouse and provides a consistent and efficient way for 
 accessing and manipulating the interactions among these objects.
@@ -66,6 +66,7 @@ See [Catalog Integration](./catalog/overview.md) for more details.
 
 ### Open Engines
 
-Through open table formats and open catalog standards, you can use TrinityLake with any open engine that supports them.
-In addition, TrinityLake is developing native connectors to various open engines such as [Apache Spark](./spark/iceberg.md).
+Through open table formats and open catalog standards, you can use TrinityLake with any open engine that supports them,
+for example with the [Spark Iceberg connector](./spark/iceberg.md).
+In addition, TrinityLake is developing native connectors to various open engines such as [Apache Spark](./spark/native.md).
 These native connectors will provide the full TrinityLake experience to users.

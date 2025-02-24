@@ -91,6 +91,12 @@ public class PropertyUtil {
     return defaultValue;
   }
 
+  public static String propertyAsString(Map<String, String> properties, String property) {
+    String value = properties.get(property);
+    ValidationUtil.checkNotNull(value, "Property %s must be set", property);
+    return value;
+  }
+
   /**
    * Returns subset of provided map with keys matching the provided prefix. Matching is
    * case-sensitive and the matching prefix is removed from the keys in returned map.

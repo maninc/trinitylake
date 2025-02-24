@@ -7,5 +7,5 @@ nav:
     - lakehouse-transaction.md
     - 'Lakehouse Object Key Encoding': key-encoding.md
     - 'Lakehouse Object Definitions': definitions
-    - 'Tree Concepts': tree
-    - 'Transaction concepts': transaction
+    - 'Appendix I: Tree Concepts': tree
+    - 'Appendix II: Transaction Concepts': transaction

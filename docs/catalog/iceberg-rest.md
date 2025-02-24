@@ -3,6 +3,11 @@
 TrinityLake provides the ability to build an Iceberg REST Catalog (IRC) server 
 following the [IRC open catalog standard](https://editor-next.swagger.io/?url=https://raw.githubusercontent.com/apache/iceberg/main/open-api/rest-catalog-open-api.yaml).
 
+## Accessing Lakehouse Versions
+
+The TrinityLake-backed IRC offers the same lakehouse version access support using multi-level namespace.
+See [Accessing Lakehouse Versions in Iceberg Catalog](./iceberg.md#accessing-lakehouse-versions) for more details.
+
 ## Using Distributed Transaction
 
 The TrinityLake-backed IRC offers the same distributed transaction support using multi-level namespace.

@@ -11,7 +11,6 @@ TrinityLake can be used through the Spark Iceberg connector by leveraging the
 To configure an Iceberg catalog with TrinityLake in Spark, you should:
 
 - Add TrinityLake Spark Iceberg runtime package to the Spark classpath
-- Add TrinityLake Spark extension to the list of Spark SQL extensions `io.trinitylake.spark.iceberg.TrinityLakeIcebergSparkExtensions`
 - Use the [Spark Iceberg connector configuration for custom catalog](https://iceberg.apache.org/docs/nightly/spark-configuration/#loading-a-custom-catalog).
 
 For example, to start a Spark shell session with a TrinityLake Iceberg catalog named `demo`:
@@ -19,7 +18,7 @@ For example, to start a Spark shell session with a TrinityLake Iceberg catalog n
 ```shell
 spark-shell \
   --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.0,io.trinitylake:trinitylake-spark-iceberg-runtime-3.5_2.12:0.0.1 \
-  --conf spark.sql.extensions=org.apache.spark.iceberg.extensions.IcebergSparkSessionExtensions,io.trinitylake.spark.iceberg.TrinityLakeIcebergSparkExtensions \
+  --conf spark.sql.extensions=org.apache.spark.iceberg.extensions.IcebergSparkSessionExtensions \
   --conf spark.sql.catalog.demo=org.apache.spark.iceberg.SparkCatalog \
   --conf spark.sql.catalog.demo.catalog-impl=io.trinitylake.iceberg.TrinityLakeIcebergCatalog \
   --conf spark.sql.catalog.demo.warehouse=s3://my-bucket
@@ -39,61 +38,65 @@ For example, to start a Spark shell session with a TrinityLake IRC catalog named
 ```shell
 spark-shell \
   --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.0,io.trinitylake:trinitylake-spark-iceberg-runtime-3.5_2.12:0.0.1 \
-  --conf spark.sql.extensions=org.apache.spark.iceberg.extensions.IcebergSparkSessionExtensions,io.trinitylake.spark.iceberg.TrinityLakeIcebergSparkExtensions \
+  --conf spark.sql.extensions=org.apache.spark.iceberg.extensions.IcebergSparkSessionExtensions \
   --conf spark.sql.catalog.demo=org.apache.spark.iceberg.SparkCatalog \
   --conf spark.sql.catalog.demo.type=rest \
   --conf spark.sql.catalog.demo.uri=http://localhost:8000
 ```
 
-## SQL Extensions
+## Accessing Lakehouse Versions
 
-TrinityLake provides the following Spark SQL extensions for a Spark Iceberg connector:
+The Spark Iceberg connector for TrinityLake offers the same lakehouse version access support using multi-level namespace.
+See [Accessing Lakehouse Versions in Iceberg Catalog](./iceberg.md#accessing-lakehouse-versions) for more details.
 
-### BEGIN
-
-Begin a transaction.
+For examples:
 
 ```sql
-BEGIN [ TRANSACTION ]
-      [ IDENTIFIED BY transaction_id ]
-      [ ISOLATION LEVEL { SERIALIZABLE | SNAPSHOT } ]
-      [ OPTIONS ( property_key = property_value [ , ... ] ) ]
+-- create lakehouse
+CREATE NAMESPACE vn_0;
+       
+-- list tables in lakehouse version 233 under namespace ns1
+SHOW TABLES IN NAMESPACE vn_233.ns1
+------
+|name|
+------     
+|t1  |
+     
+SELECT * FROM vn_233.ns1.t1
+-----------
+|id |data |
+-----------
+|1  |abc  |
+|2  |def  |
 ```
 
+## Using Distributed Transaction
 
-### COMMIT
+The Spark Iceberg connector for TrinityLake offers the same distributed transaction support using multi-level namespace.
+See [Using Distributed Transaction in Iceberg Catalog](./iceberg.md#using-distributed-transaction) for more details.
 
-Commit a transaction. This command can only be used after executing a [`BEGIN`](#begin) or [`LOAD`](#load)
-
-```sql
-COMMIT [ TRANSACTION ]
-```
-
-
-### SAVE
-
-Save the current transaction and exit the current transaction context.
+For examples:
 
 ```sql
-SAVE [ TRANSACTION ]
-```
+-- create a transaction with ID 1234
+CREATE NAMESPACE txn_1234;
+       
+-- list tables in transaction of ID 1234 under namespace ns1
+SHOW TABLES IN NAMESPACE txn_1234.ns1;
+------
+|name|
+------     
+|t1  |
 
-### LOAD
+SELECT * FROM txn_1234.ns1.t1;
+-----------
+|id |data |
+-----------
+|1  |abc  |
+|2  |def  |
 
-Load a transaction of a given ID, and resume its transaction context.
+INSERT INTO txn_1234.ns1.t1 VALUES (3, 'ghi');
 
-```sql
-LOAD [ TRANSACTION ]
-     [ IDENTIFIED BY transaction_id ]
-```
-
-### SET ISOLATION LEVEL
-
-Set the default isolation level for any new transactions in the session.
-
-```sql
-SET [ TRANSACTION ] ISOLATION LEVEL 
-    { SERIALIZABLE 
-    | SNAPSHOT 
-    }
+-- commit transaction with ID 1234
+ALTER NAMESPACE txn_1234 OPTIONS ('commit' = 'true');
 ```
