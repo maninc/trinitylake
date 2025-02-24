@@ -316,7 +316,12 @@ public class TrinityLake {
 
   public static List<String> showViews(
       LakehouseStorage storage, RunningTransaction transaction, String namespaceName) {
-    return null;
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    return transaction.runningRoot().nodeKeyTable().stream()
+        .map(NodeKeyTableRow::key)
+        .filter(key -> ObjectKeys.isViewKey(key, lakehouseDef))
+        .map(key -> ObjectKeys.viewNameFromKey(key, lakehouseDef))
+        .collect(Collectors.toList());
   }
 
   public static boolean viewExists(
@@ -324,15 +329,26 @@ public class TrinityLake {
       RunningTransaction transaction,
       String namespaceName,
       String viewName) {
-    return false;
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String viewKey = ObjectKeys.viewKey(namespaceName, viewName, lakehouseDef);
+    return TreeOperations.searchValue(storage, transaction.runningRoot(), viewKey).isPresent();
   }
 
   public static ViewDef describeView(
       LakehouseStorage storage,
       RunningTransaction transaction,
       String namespaceName,
-      String viewName) {
-    return null;
+      String viewName)
+      throws ObjectNotFoundException {
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String viewKey = ObjectKeys.viewKey(namespaceName, viewName, lakehouseDef);
+    Optional<String> viewDefFilePath =
+        TreeOperations.searchValue(storage, transaction.runningRoot(), viewKey);
+    if (!viewDefFilePath.isPresent()) {
+      throw new ObjectNotFoundException(
+          "Namespace %s view %s does not exist", namespaceName, viewName);
+    }
+    return ObjectDefinitions.readViewDef(storage, viewDefFilePath.get());
   }
 
   public static RunningTransaction createView(
@@ -340,8 +356,24 @@ public class TrinityLake {
       RunningTransaction transaction,
       String namespaceName,
       String viewName,
-      TableDef viewDef) {
-    return null;
+      ViewDef viewDef)
+      throws ObjectAlreadyExistsException, CommitFailureException {
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String namespaceKey = ObjectKeys.namespaceKey(namespaceName, lakehouseDef);
+    if (!TreeOperations.searchValue(storage, transaction.runningRoot(), namespaceKey).isPresent()) {
+      throw new ObjectNotFoundException("Namespace %s does not exist", namespaceName);
+    }
+    String viewKey = ObjectKeys.viewKey(namespaceName, viewName, lakehouseDef);
+    if (TreeOperations.searchValue(storage, transaction.runningRoot(), viewKey).isPresent()) {
+      throw new ObjectAlreadyExistsException(
+          "Namespace %s view %s already exists", namespaceName, viewName);
+    }
+
+    String viewDefFilePath = FileLocations.newViewDefFilePath(namespaceName, viewName);
+    ObjectDefinitions.writeViewDef(storage, viewDefFilePath, namespaceName, viewName, viewDef);
+    TreeRoot newRoot = TreeOperations.cloneTreeRoot(transaction.runningRoot());
+    TreeOperations.setValue(storage, newRoot, viewKey, viewDefFilePath);
+    return ImmutableRunningTransaction.builder().from(transaction).runningRoot(newRoot).build();
   }
 
   public static RunningTransaction replaceView(
@@ -349,17 +381,23 @@ public class TrinityLake {
       RunningTransaction transaction,
       String namespaceName,
       String viewName,
-      TableDef viewDef) {
-    return null;
-  }
+      ViewDef viewDef) {
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String namespaceKey = ObjectKeys.namespaceKey(namespaceName, lakehouseDef);
+    if (!TreeOperations.searchValue(storage, transaction.runningRoot(), namespaceKey).isPresent()) {
+      throw new ObjectNotFoundException("Namespace %s does not exist", namespaceName);
+    }
+    String viewKey = ObjectKeys.viewKey(namespaceName, viewName, lakehouseDef);
+    if (!TreeOperations.searchValue(storage, transaction.runningRoot(), viewKey).isPresent()) {
+      throw new ObjectNotFoundException(
+          "Namespace %s view %s does not exists", namespaceName, viewName);
+    }
 
-  public static RunningTransaction alterView(
-      LakehouseStorage storage,
-      RunningTransaction transaction,
-      String namespaceName,
-      String viewName,
-      TableDef viewDef) {
-    return null;
+    String viewDefFilePath = FileLocations.newViewDefFilePath(namespaceName, viewName);
+    ObjectDefinitions.writeViewDef(storage, viewDefFilePath, namespaceName, viewName, viewDef);
+    TreeRoot newRoot = TreeOperations.cloneTreeRoot(transaction.runningRoot());
+    TreeOperations.setValue(storage, newRoot, viewKey, viewDefFilePath);
+    return ImmutableRunningTransaction.builder().from(transaction).runningRoot(newRoot).build();
   }
 
   public static RunningTransaction dropView(
@@ -367,6 +405,15 @@ public class TrinityLake {
       RunningTransaction transaction,
       String namespaceName,
       String viewName) {
-    return null;
+    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String viewKey = ObjectKeys.viewKey(namespaceName, viewName, lakehouseDef);
+    if (!TreeOperations.searchValue(storage, transaction.runningRoot(), viewKey).isPresent()) {
+      throw new ObjectNotFoundException(
+          "Namespace %s view %s does not exists", namespaceName, viewName);
+    }
+
+    TreeRoot newRoot = TreeOperations.cloneTreeRoot(transaction.runningRoot());
+    TreeOperations.removeKey(storage, newRoot, viewKey);
+    return ImmutableRunningTransaction.builder().from(transaction).runningRoot(newRoot).build();
   }
 }

@@ -13,6 +13,8 @@
  */
 package io.trinitylake;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.SQLRepresentation;
 import io.trinitylake.models.ViewDef;
@@ -24,7 +26,6 @@ import io.trinitylake.storage.LiteralURI;
 import io.trinitylake.storage.local.LocalStorageOps;
 import io.trinitylake.storage.local.LocalStorageOpsProperties;
 import java.io.File;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -77,10 +78,10 @@ public class TestObjectDefinitions {
     String testViewDefFilePath = FileLocations.newViewDefFilePath(testNamespaceName, testViewName);
     File testViewDefFile = new File(tempDir, testViewDefFilePath);
 
-    Assertions.assertFalse(testViewDefFile.exists());
+    assertThat(testViewDefFile.exists()).isFalse();
     ObjectDefinitions.writeViewDef(
         storage, testViewDefFilePath, testNamespaceName, testViewName, testViewDef);
-    Assertions.assertTrue(testViewDefFile.exists());
+    assertThat(testViewDefFile.exists()).isTrue();
   }
 
   @Test
@@ -88,12 +89,12 @@ public class TestObjectDefinitions {
     String testViewDefFilePath = FileLocations.newViewDefFilePath(testNamespaceName, testViewName);
     File testViewDefFile = new File(tempDir, testViewDefFilePath);
 
-    Assertions.assertFalse(testViewDefFile.exists());
+    assertThat(testViewDefFile.exists()).isFalse();
     ObjectDefinitions.writeViewDef(
         storage, testViewDefFilePath, testNamespaceName, testViewName, testViewDef);
-    Assertions.assertTrue(testViewDefFile.exists());
+    assertThat(testViewDefFile.exists()).isTrue();
 
     ViewDef viewDef = ObjectDefinitions.readViewDef(storage, testViewDefFilePath);
-    Assertions.assertEquals(testViewDef, viewDef);
+    assertThat(viewDef).isEqualTo(testViewDef);
   }
 }
