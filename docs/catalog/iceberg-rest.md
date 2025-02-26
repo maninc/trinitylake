@@ -3,10 +3,11 @@
 TrinityLake provides the ability to build an Iceberg REST Catalog (IRC) server 
 following the [IRC open catalog standard](https://editor-next.swagger.io/?url=https://raw.githubusercontent.com/apache/iceberg/main/open-api/rest-catalog-open-api.yaml).
 
-## Accessing Lakehouse Versions
+## Using System Namespace
 
-The TrinityLake-backed IRC offers the same lakehouse version access support using multi-level namespace.
-See [Accessing Lakehouse Versions in Iceberg Catalog](./iceberg.md#accessing-lakehouse-versions) for more details.
+The TrinityLake-backed IRC offers the same system namespace support 
+to perform operations like create lakehouse and list distributed transactions.
+See [Using System Namespace in Iceberg Catalog](./iceberg.md#using-system-namespace) for more details.
 
 ## Using Distributed Transaction
 
@@ -27,11 +28,11 @@ After the standard installation process, add the TrinityLake SDK to your Java cl
 
 Use the following configuration to start the Gravitino IRC server:
 
-| Configuration Item                          | Description                                                                                                 | Value                                     |
-|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|-------------------------------------------|
-| gravitino.iceberg-rest.catalog-backend      | The Catalog backend implementation of the Gravitino Iceberg REST catalog service.                           | io.trinitylake.iceberg.TrinityLakeIceberg |
-| gravitino.iceberg-rest.catalog-backend-name | The catalog backend name passed to underlying Iceberg catalog backend.                                      | any name you like, e.g. `trinitylake`     |
-| gravitino.iceberg-rest.<key>                | Any other catalog properties, see [TrinityLake Iceberg catalog properties](./iceberg.md#catalog-properties) |                                           |
+| Configuration Item                          | Description                                                                                                 | Value                                            |
+|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| gravitino.iceberg-rest.catalog-backend-impl | The Catalog backend implementation of the Gravitino Iceberg REST catalog service.                           | io.trinitylake.iceberg.TrinityLakeIcebergCatalog |
+| gravitino.iceberg-rest.catalog-backend-name | The catalog backend name passed to underlying Iceberg catalog backend.                                      | any name you like, e.g. `trinitylake`            |
+| gravitino.iceberg-rest.<key\>               | Any other catalog properties, see [TrinityLake Iceberg catalog properties](./iceberg.md#catalog-properties) |                                                  |
 
 ### Running the server
 

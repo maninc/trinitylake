@@ -13,19 +13,71 @@
  */
 package io.trinitylake.iceberg;
 
-public class TrinityLakeIcebergCatalogProperties {
+import io.trinitylake.StringMapBased;
+import io.trinitylake.relocated.com.google.common.collect.ImmutableSet;
+import io.trinitylake.util.PropertyUtil;
+import java.util.Map;
+import java.util.Set;
 
-  private TrinityLakeIcebergCatalogProperties() {}
+public class TrinityLakeIcebergCatalogProperties implements StringMapBased {
 
   public static final String STORAGE_TYPE = "storage.type";
 
   public static final String STORAGE_OPS_PROPERTIES_PREFIX = "storage.ops.";
 
-  public static final String VERSION_NAMESPACE_PREFIX = "vn.namespace-prefix";
+  public static final String SYSTEM_NAMESPACE_NAME = "system.ns-name";
 
-  public static final String TRANSACTION_NAMESPACE_PREFIX = "txn.namespace-prefix";
+  public static final String SYSTEM_NAMESPACE_NAME_DEFAULT = "sys";
 
-  public static final String TRANSACTION_ISOLATION_LEVEL = "txn.isolation-level";
+  public static final String DTXN_PARENT_NAMESPACE_NAME = "dtxn.parent-ns-name";
 
-  public static final String TRANSACTION_TTL_MILLIS = "txn.ttl-millis";
+  public static final String DTXN_PARENT_NAMESPACE_DEFAULT = "dtxns";
+
+  public static final String DTXN_NAMESPACE_PREFIX = "dtxn.prefix";
+
+  public static final String DTXN_NAMESPACE_PREFIX_DEFAULT = "dtxn_";
+
+  public static final Set<String> PROPERTIES =
+      ImmutableSet.<String>builder()
+          .add(SYSTEM_NAMESPACE_NAME)
+          .add(DTXN_PARENT_NAMESPACE_NAME)
+          .add(DTXN_NAMESPACE_PREFIX)
+          .build();
+
+  private final Map<String, String> propertiesMap;
+  private final String systemNamespaceName;
+  private final String dtxnParentNamespaceName;
+  private final String dtxnNamespacePrefix;
+
+  public TrinityLakeIcebergCatalogProperties(Map<String, String> properties) {
+    this.propertiesMap =
+        PropertyUtil.filterProperties(
+            properties, k -> k.startsWith(STORAGE_OPS_PROPERTIES_PREFIX) || PROPERTIES.contains(k));
+    this.systemNamespaceName =
+        PropertyUtil.propertyAsString(
+            properties, SYSTEM_NAMESPACE_NAME, SYSTEM_NAMESPACE_NAME_DEFAULT);
+    this.dtxnParentNamespaceName =
+        PropertyUtil.propertyAsString(
+            properties, DTXN_PARENT_NAMESPACE_NAME, DTXN_PARENT_NAMESPACE_DEFAULT);
+    this.dtxnNamespacePrefix =
+        PropertyUtil.propertyAsString(
+            properties, DTXN_NAMESPACE_PREFIX, DTXN_NAMESPACE_PREFIX_DEFAULT);
+  }
+
+  public String systemNamespaceName() {
+    return systemNamespaceName;
+  }
+
+  public String dtxnNamespacePrefix() {
+    return dtxnNamespacePrefix;
+  }
+
+  public String dtxnParentNamespaceName() {
+    return dtxnParentNamespaceName;
+  }
+
+  @Override
+  public Map<String, String> asStringMap() {
+    return propertiesMap;
+  }
 }

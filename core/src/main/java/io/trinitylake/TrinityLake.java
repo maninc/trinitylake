@@ -37,6 +37,11 @@ public class TrinityLake {
 
   private TrinityLake() {}
 
+  public static boolean lakehouseExists(LakehouseStorage storage) {
+    String rootNodeFilePath = FileLocations.rootNodeFilePath(0);
+    return storage.exists(rootNodeFilePath);
+  }
+
   public static void createLakehouse(LakehouseStorage storage, LakehouseDef lakehouseDef) {
     String lakehouseDefFilePath = FileLocations.newLakehouseDefFilePath();
     ObjectDefinitions.writeLakehouseDef(storage, lakehouseDefFilePath, lakehouseDef);
@@ -91,7 +96,8 @@ public class TrinityLake {
         .build();
   }
 
-  public static String saveTransaction(LakehouseStorage storage, RunningTransaction transaction) {
+  public static String saveDistTransaction(
+      LakehouseStorage storage, RunningTransaction transaction) {
     String runningRootNodeFilePath = FileLocations.newNodeFilePath();
     TreeOperations.writeRootNodeFile(storage, runningRootNodeFilePath, transaction.runningRoot());
     TransactionDef transactionDef =
@@ -103,15 +109,16 @@ public class TrinityLake {
             .setBeganAtMillis(transaction.beganAtMillis())
             .setExpireAtMillis(transaction.expireAtMillis())
             .build();
-    String transactionDefFilePath = FileLocations.newTransactionDefFilePath(transaction);
+    String transactionDefFilePath =
+        FileLocations.distTransactionDefFilePath(transaction.transactionId());
     ObjectDefinitions.writeTransactionDef(storage, transactionDefFilePath, transactionDef);
     return transactionDefFilePath;
   }
 
-  public static RunningTransaction loadTransaction(
-      LakehouseStorage storage, String transactionDefFilePath) {
+  public static RunningTransaction loadDistTransaction(
+      LakehouseStorage storage, String distTransactionDefFilePath) {
     TransactionDef transactionDef =
-        ObjectDefinitions.readTransactionDef(storage, transactionDefFilePath);
+        ObjectDefinitions.readTransactionDef(storage, distTransactionDefFilePath);
     TreeRoot beginningRoot =
         TreeOperations.readRootNodeFile(storage, transactionDef.getBeginningRootNodeFilePath());
     TreeRoot runningRoot =
@@ -124,6 +131,11 @@ public class TrinityLake {
         .expireAtMillis(transactionDef.getExpireAtMillis())
         .isolationLevel(transactionDef.getIsolationLevel())
         .build();
+  }
+
+  public static boolean distTransactionExists(LakehouseStorage storage, String transactionId) {
+    String distTransactionDefFilePath = FileLocations.distTransactionDefFilePath(transactionId);
+    return storage.exists(distTransactionDefFilePath);
   }
 
   public static List<String> showNamespaces(

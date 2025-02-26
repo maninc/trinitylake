@@ -28,7 +28,7 @@ spark-shell \
 
 To configure an Iceberg REST catalog with TrinityLake in Spark, you should:
 
-- Start your TrinityLake IRC server such as the [Apache Gravitino IRC server](../catalog/iceberg-rest.md#apache-gravitino-irc-server)
+- Start your [TrinityLake IRC server](../catalog/iceberg-rest.md)
 - Add TrinityLake Spark Iceberg runtime package to the Spark classpath
 - Add TrinityLake Spark extension to the list of Spark SQL extensions `io.trinitylake.spark.iceberg.TrinityLakeIcebergSparkExtensions`
 - Use the [Spark Iceberg connector configuration for IRC](https://iceberg.apache.org/docs/nightly/spark-configuration/#catalog-configuration).
@@ -44,30 +44,31 @@ spark-shell \
   --conf spark.sql.catalog.demo.uri=http://localhost:8000
 ```
 
-## Accessing Lakehouse Versions
+## Using System Namespace
 
-The Spark Iceberg connector for TrinityLake offers the same lakehouse version access support using multi-level namespace.
-See [Accessing Lakehouse Versions in Iceberg Catalog](./iceberg.md#accessing-lakehouse-versions) for more details.
+The TrinityLake Spark Iceberg connector offers the same system namespace support
+to perform operations like create lakehouse and list distributed transactions.
+See [Using System Namespace in Iceberg Catalog](./iceberg.md#using-system-namespace) for more details.
 
 For examples:
 
 ```sql
 -- create lakehouse
-CREATE NAMESPACE vn_0;
+CREATE DATABASE sys;
        
--- list tables in lakehouse version 233 under namespace ns1
-SHOW TABLES IN NAMESPACE vn_233.ns1
-------
-|name|
-------     
-|t1  |
+SHOW DATABASES IN sys
+---------
+|name   |
+---------    
+|dtxns  |
      
-SELECT * FROM vn_233.ns1.t1
------------
-|id |data |
------------
-|1  |abc  |
-|2  |def  |
+-- list distributed transactions in lakehouse
+SHOW DATABASES IN sys.dtxns
+------------
+|name      |
+------------    
+|dtxn_123  |
+|dtxn_455  |
 ```
 
 ## Using Distributed Transaction
@@ -79,24 +80,26 @@ For examples:
 
 ```sql
 -- create a transaction with ID 1234
-CREATE NAMESPACE txn_1234;
+CREATE DATABASE system.dtxns.dtxn_1234
+       WITH DBPROPERTIES ('isolation-level'='serializable')
        
 -- list tables in transaction of ID 1234 under namespace ns1
-SHOW TABLES IN NAMESPACE txn_1234.ns1;
+SHOW TABLES IN sys.dtxns.txn_1234.ns1;
 ------
 |name|
 ------     
 |t1  |
 
-SELECT * FROM txn_1234.ns1.t1;
+SELECT * FROM sys.dtxns.txn_1234.ns1.t1;
 -----------
 |id |data |
 -----------
 |1  |abc  |
 |2  |def  |
 
-INSERT INTO txn_1234.ns1.t1 VALUES (3, 'ghi');
+INSERT INTO sys.dtxns.txn_1234.ns1.t1 VALUES (3, 'ghi');
 
 -- commit transaction with ID 1234
-ALTER NAMESPACE txn_1234 OPTIONS ('commit' = 'true');
+ALTER DATABASE sys.dtxns.txn_1234
+      SET DBPROPERTIES ('commit' = 'true');
 ```

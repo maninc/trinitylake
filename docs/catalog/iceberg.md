@@ -12,15 +12,14 @@ and [Apache Hive](https://iceberg.apache.org/docs/nightly/hive/#custom-iceberg-c
 
 The TrinityLake Iceberg catalog exposes the following catalog properties:
 
-| Property Name        | Description                                                                                                                  | Required? | Default                                                                       |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------|-----------|-------------------------------------------------------------------------------|
-| warehouse            | The Iceberg catalog warehouse location, should be set to the root URI for the lakehouse storage                              | Yes       |                                                                               |
-| storage.type         | Type of storage. If not set, the type is inferred from the root URI scheme.                                                  | No        |                                                                               |
-| storage.ops.<key\>   | Any property configuration for a specific type of storage operation. See [Storage](../storage/overview.md) for more details. | No        |                                                                               |
-| vn.namespace-prefix  | The prefix to indicate a namespace is used to access a specific version of a lakehouse                                       | No        | vn_                                                                           |
-| txn.namespace-prefix | The prefix to indicate a namespace is used to begin a transaction                                                            | No        | txn_                                                                          |
-| txn.isolation-level  | The default isolation level for a transaction                                                                                | No        | default setting in [Lakehouse Definition](../format/definitions/lakehouse.md) |
-| txn.ttl-millis       | The default duration for which a transaction is valid in milliseconds                                                        | No        | default setting in [Lakehouse Definition](../format/definitions/lakehouse.md) |
+| Property Name       | Description                                                                                                                             | Required? | Default |
+|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------|-----------|---------|
+| warehouse           | The Iceberg catalog warehouse location, should be set to the root URI for the lakehouse storage                                         | Yes       |         |
+| storage.type        | Type of storage. If not set, the type is inferred from the root URI scheme.                                                             | No        |         |
+| storage.ops.<key\>  | Any property configuration for a specific type of storage operation. See [Storage](../storage/overview.md) for more details.            | No        |         |
+| system.ns-name      | Name of the system namespace                                                                                                            | No        | sys     |
+| dtxn.parent-ns-name | Name of the parent namespace name, this parent namespace is within the system namespace and hold all distributed transaction namespaces | No        | dtxns   |
+| dtxn.ns-prefix      | The prefix for a namespace to represent a distributed transaction                                                                       | No        | dtxn_   |
 
 For example, a user can initialize a TrinityLake Iceberg catalog with:
 
@@ -40,57 +39,57 @@ catalog.initialize(
 SupportsNamespaces nsCatalog = (SupportsNamespace) catalog;
 ```
 
-## Accessing Lakehouse Versions
+## Using System Namespace
 
-You can access a specific version of a Trinity lakehouse through Iceberg multi-level namespace.
-This feature is read-only, except for creating the initial version of the lakehouse.
+The system namespace is a special namespace with name determined by `system.ns-name` that exists 
+if a Trinity lakehouse is initialized at the `warehouse` location.
+It contains information about the distributed transactions that are available to use in the lakehouse.
 
-### Create a new lakehouse (version 0)
+### Create a new lakehouse
 
-If you create a namespace with `version.namespace-prefix` plus `0` (`vn_0` by default),
-this is treated as creating a new lakehouse at the configured `warehouse` location.
-[Lakehouse definitions](../format/definitions/lakehouse.md) can be supplied through the namespace properties.
+If there is no Trinity lakehouse initialized at the `warehouse` location, the system namespace will not exist.
+The act of creating this system namespace represents creating the lakehouse.
+At creation time, [lakehouse definition fields](../format/definitions/lakehouse.md) can be supplied through the namespace properties.
 
 For example:
 
 ```java
 import org.apache.iceberg.Namespace;
 
-String initialLakehouseNamespaceName = "vn_0";
-Namesapce initialLakehouseNamespace = Namespace.of(txnNamespaceName);
+Namesapce systemNamespace = Namespace.of("system");
 
 // create a lakehouse
 nsCatalog.createNamespace(
-        txnNamespace, 
-        ImmutableMap.of("namespace_name_max_size_bytes", "10"));
-```
-
-### Access objects in a specific lakehouse version
-
-Consider a lakehouse with version `233` that contains a table `t1` in namespace `ns1`:
-
-```java
-import static org.assertj.core.api.Assertions.assertThat;
-
-String v233NamespaceName = "vn_233";
-Namesapce v233Namespace = Namespace.of(v233NamespaceName);
-
-// list namespaces in lakehouse version 233
-assertThat(catalog.listNamespaces(v233Namespace))
-        .containsExactly(Namespace.of(v233NamespaceName, "ns1"));
-
-// list tables in lakehouse version 233 under namespace ns1
-assertThat(catalog.listTables(Namespace.of(v233Namespace, "ns1")))
-        .containsExactly(TableIdentifier.of(v233NamespaceName, "ns1", "t1"));
+        systemNamespace, 
+        ImmutableMap.of("namespace_name_max_size_bytes", "256"));
 ```
 
 ## Using Distributed Transaction
  
 You can use the TrinityLake transaction semantics through Iceberg multi-level namespace.
 
+### Distributed transactions namespace
+
+Under the system namespace, there is always a namespace with name determined by `dtxn.parent-ns-name`.
+This is the parent namespace that holds all the distributed transactions.
+Each distributed transaction is represented by a namespace with prefix determined by `dtxn.ns-prefix`,
+followed by the transaction ID.
+
+For example, if there are 2 distributed transactions with IDs `123` and `456`, 
+you should see the following namespace hierarchy:
+
+```
+└── system
+    └── dtxns
+        ├── dtxn_123
+        └── dtxn_456
+```
+
 ### Begin a transaction
 
-If you create a namespace with a prefix matching the `txn.namespace-prefix`, then it is considered beginning a transaction.
+If you create a namespace with a prefix matching the `dtxn.ns-prefix`,
+and the namespace is within the system namespace, and also under the parent namespace `dtx.parent-ns-prefix`,
+then it is considered as beginning a distributed transaction.
 
 The namespace properties are used to provide runtime override options for the transaction. The following options are supported:
 
@@ -100,15 +99,12 @@ The namespace properties are used to provide runtime override options for the tr
 | ttl-millis      | The duration for which a transaction is valid in milliseconds |
 
 The act of creating such a namespace means to create a distributed transaction that is persisted in the lakehouse.
-For example, consider a user creating a transaction `txn_1`:
+For example, consider a user creating a transaction with ID `123`:
 
 ```java
-String txnNamespaceName = "txn_1";
-Namesapce txnNamesapce = Namespace.of(txnNamespaceName);
-
 // begin a transaction with SERIALIZABLE level isolation
 nsCatalog.createNamespace(
-        txnNamespace, 
+        Namespace.of("system", "dtxns", "dtxn_123"), 
         ImmutableMap.of("isolation-level", "serializable"));
 ```
 
@@ -116,16 +112,17 @@ nsCatalog.createNamespace(
 
 After creation, a user can access the specific isolated version of the lakehouse under the namespace.
 For example, consider a Trinity Lakehouse with namespace `ns1` and table `t1`,
-then the user should see a namespace `txn_1.ns1` and a table `txn_1.ns1.t1` which the user can read and write to:
+then the user should see a namespace `system.dtxns.dtxn_123.ns1` 
+and a table `system.dtxns.dtxn_123.ns1.t1` which the user can read and write to:
 
 ```java
 // list namespaces in this transaction
-assertThat(catalog.listNamespaces(txnNamespace))
-        .containsExactly(Namespace.of(txnNamespaceName, "ns1"));
+assertThat(catalog.listNamespaces(Namespace.of("system", "dtxns", "dtxn_123")))
+        .containsExactly(Namespace.of("system", "dtxns", "dtxn_123", "ns1"));
 
 // list tables in this transaction under namespace ns1
-assertThat(catalog.listTables(Namespace.of(txnNamespaceName, "ns1")))
-        .containsExactly(TableIdentifier.of(txnNamespaceName, "ns1", "t1"));
+assertThat(catalog.listTables(Namespace.of("system", "dtxns", "dtxn_123", "ns1")))
+        .containsExactly(TableIdentifier.of("system", "dtxns", "dtxn_123", "ns1", "t1"));
 ```
 
 ### Commit a transaction
@@ -134,7 +131,7 @@ In order to commit this transaction, set the namesapce property `commit` to `tru
 
 ```java
 nsCatalog.setProperties(
-        txnNamespace, 
+        Namespace.of("system", "dtxns", "dtxn_123"), 
         ImmutbaleMap.of("commit", "true"));
 ```
 
@@ -143,5 +140,5 @@ nsCatalog.setProperties(
 In order to rollback a transaction, perform a drop namespace:
 
 ```java
-nsCatalog.dropNamespace(txnNamespace);
+nsCatalog.dropNamespace(Namespace.of("system", "dtxns", "dtxn_123"));
 ```

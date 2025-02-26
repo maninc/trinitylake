@@ -111,9 +111,9 @@ public class FileLocations {
         UUID.randomUUID().toString());
   }
 
-  public static String newTransactionDefFilePath(RunningTransaction transaction) {
+  public static String distTransactionDefFilePath(String transactionId) {
     return generateOptimizedFilePath(
-        PROTOBUF_BINARY_FILE_SUFFIX, TRANSACTION_DEF_FILE_PREFIX, transaction.transactionId());
+        PROTOBUF_BINARY_FILE_SUFFIX, TRANSACTION_DEF_FILE_PREFIX, transactionId);
   }
 
   public static String newNodeFilePath() {
