@@ -22,8 +22,6 @@ import java.util.Set;
 
 public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
 
-  private static final AmazonS3StorageOpsProperties INSTANCE = new AmazonS3StorageOpsProperties();
-
   public static final String S3_REGION = "s3.region";
   public static final String S3_ACCESS_KEY_ID = "s3.access-key-id";
   public static final String S3_SECRET_ACCESS_KEY = "s3.secret-access-key";
@@ -38,6 +36,8 @@ public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
           .build();
 
   private final Map<String, String> propertiesMap;
+
+  private static final AmazonS3StorageOpsProperties INSTANCE = new AmazonS3StorageOpsProperties();
 
   private final String region;
   private final String accessKeyId;

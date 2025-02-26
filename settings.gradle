@@ -15,10 +15,12 @@
 rootProject.name = 'trinitylake'
 
 include 'core'
+include 'aws'
 include 'spark'
 include 'bundled-guava'
 
 project(':core').name = 'trinitylake-core'
+project(':aws').name = 'trinitylake-aws'
 project(':spark').name = 'trinitylake-spark'
 project(':bundled-guava').name = 'trinitylake-bundled-guava'
 

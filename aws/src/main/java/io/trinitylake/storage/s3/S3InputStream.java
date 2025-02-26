@@ -94,7 +94,7 @@ class S3InputStream extends SeekableInputStream {
 
   @Override
   public int read() throws IOException {
-    ValidationUtil.checkState(!closed, "Cannot read: already closed");
+    ValidationUtil.checkState(!closed, "Cannot read already closed");
     positionStream();
     try {
       int bytesRead = Failsafe.with(retryPolicy).get(() -> stream.read());
@@ -185,6 +185,9 @@ class S3InputStream extends SeekableInputStream {
     } catch (NoSuchKeyException e) {
       throw new StoragePathNotFoundException(e, "Path does not exist: %s", uri);
     } catch (ExecutionException e) {
+      if (e.getCause() instanceof NoSuchKeyException) {
+        throw new StoragePathNotFoundException(e, "Path does not exist: %s", uri);
+      }
       throw new StorageReadFailureException(e, "Read execution failed: %s", uri);
     } catch (InterruptedException e) {
       throw new StorageReadFailureException(e, "Read interrupted: %s", uri);
