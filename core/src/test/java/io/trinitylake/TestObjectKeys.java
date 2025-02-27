@@ -24,7 +24,8 @@ public class TestObjectKeys {
 
   @Test
   public void testNamespaceKey() {
-    LakehouseDef lakehouseDef = LakehouseDef.newBuilder().setNamespaceNameMaxSizeBytes(8).build();
+    LakehouseDef lakehouseDef =
+        ObjectDefinitions.newLakehouseDefBuilder().setNamespaceNameMaxSizeBytes(8).build();
     assertThat(ObjectKeys.namespaceKey("ns1", lakehouseDef)).isEqualTo("B===ns1     ");
     assertThatThrownBy(() -> ObjectKeys.namespaceKey("", lakehouseDef))
         .isInstanceOf(InvalidArgumentException.class)
@@ -36,7 +37,8 @@ public class TestObjectKeys {
 
   @Test
   public void testIsNamespaceKey() {
-    LakehouseDef lakehouseDef = LakehouseDef.newBuilder().setNamespaceNameMaxSizeBytes(8).build();
+    LakehouseDef lakehouseDef =
+        ObjectDefinitions.newLakehouseDefBuilder().setNamespaceNameMaxSizeBytes(8).build();
     assertThat(ObjectKeys.isNamespaceKey("B===ns1     ", lakehouseDef)).isTrue();
     assertThat(ObjectKeys.isNamespaceKey("B===ns1  ", lakehouseDef)).isFalse();
     assertThat(ObjectKeys.isNamespaceKey("b===ns1", lakehouseDef)).isFalse();
@@ -44,7 +46,8 @@ public class TestObjectKeys {
 
   @Test
   public void testNamespaceNameFromKey() {
-    LakehouseDef lakehouseDef = LakehouseDef.newBuilder().setNamespaceNameMaxSizeBytes(8).build();
+    LakehouseDef lakehouseDef =
+        ObjectDefinitions.newLakehouseDefBuilder().setNamespaceNameMaxSizeBytes(8).build();
     assertThat(ObjectKeys.namespaceNameFromKey("B===ns1     ", lakehouseDef)).isEqualTo("ns1");
     assertThatThrownBy(() -> ObjectKeys.namespaceNameFromKey("B===ns1  ", lakehouseDef))
         .isInstanceOf(InvalidArgumentException.class)
@@ -54,7 +57,7 @@ public class TestObjectKeys {
   @Test
   public void testTableKey() {
     LakehouseDef lakehouseDef =
-        LakehouseDef.newBuilder()
+        ObjectDefinitions.newLakehouseDefBuilder()
             .setNamespaceNameMaxSizeBytes(8)
             .setTableNameMaxSizeBytes(8)
             .build();
@@ -76,7 +79,7 @@ public class TestObjectKeys {
   @Test
   public void testIsTableKey() {
     LakehouseDef lakehouseDef =
-        LakehouseDef.newBuilder()
+        ObjectDefinitions.newLakehouseDefBuilder()
             .setNamespaceNameMaxSizeBytes(8)
             .setTableNameMaxSizeBytes(8)
             .build();
@@ -88,7 +91,7 @@ public class TestObjectKeys {
   @Test
   public void testTableNameFromKey() {
     LakehouseDef lakehouseDef =
-        LakehouseDef.newBuilder()
+        ObjectDefinitions.newLakehouseDefBuilder()
             .setNamespaceNameMaxSizeBytes(8)
             .setTableNameMaxSizeBytes(8)
             .build();

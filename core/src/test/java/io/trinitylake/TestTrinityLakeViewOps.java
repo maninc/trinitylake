@@ -38,14 +38,10 @@ import org.junit.jupiter.api.io.TempDir;
 public class TestTrinityLakeViewOps {
 
   private static final LakehouseDef LAKEHOUSE_DEF =
-      LakehouseDef.newBuilder()
-          .setNamespaceNameMaxSizeBytes(8)
-          .setTableNameMaxSizeBytes(8)
-          .setViewNameMaxSizeBytes(8)
-          .build();
+      ObjectDefinitions.newLakehouseDefBuilder().build();
   private static final String NS1 = "ns1";
   private static final NamespaceDef NS1_DEF =
-      NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+      ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
 
   @TempDir private File tempDir;
 
@@ -73,8 +69,7 @@ public class TestTrinityLakeViewOps {
   @Test
   public void testCreateView() {
     ViewDef viewDef =
-        ViewDef.newBuilder()
-            .setId("0")
+        ObjectDefinitions.newViewDefBuilder()
             .setSchemaBinding(false)
             .addSqlRepresentations(
                 SQLRepresentation.newBuilder()
@@ -106,8 +101,7 @@ public class TestTrinityLakeViewOps {
   @Test
   public void testCreateDescribeView() {
     ViewDef viewDef =
-        ViewDef.newBuilder()
-            .setId("0")
+        ObjectDefinitions.newViewDefBuilder()
             .setSchemaBinding(false)
             .addSqlRepresentations(
                 SQLRepresentation.newBuilder()
@@ -133,8 +127,7 @@ public class TestTrinityLakeViewOps {
   @Test
   public void testCreateDescribeReplaceDescribeView() {
     ViewDef viewDef =
-        ViewDef.newBuilder()
-            .setId("0")
+        ObjectDefinitions.newViewDefBuilder()
             .setSchemaBinding(false)
             .addSqlRepresentations(
                 SQLRepresentation.newBuilder()
@@ -157,8 +150,7 @@ public class TestTrinityLakeViewOps {
     assertThat(v1DefDescribe).isEqualTo(viewDef);
 
     ViewDef v1DefAlter =
-        ViewDef.newBuilder()
-            .setId("0")
+        ObjectDefinitions.newViewDefBuilder()
             .setSchemaBinding(false)
             .addSqlRepresentations(
                 SQLRepresentation.newBuilder()
@@ -188,8 +180,7 @@ public class TestTrinityLakeViewOps {
   @Test
   public void testCreateDescribeDropDescribeNamespace() {
     ViewDef viewDef =
-        ViewDef.newBuilder()
-            .setId("0")
+        ObjectDefinitions.newViewDefBuilder()
             .setSchemaBinding(false)
             .addSqlRepresentations(
                 SQLRepresentation.newBuilder()

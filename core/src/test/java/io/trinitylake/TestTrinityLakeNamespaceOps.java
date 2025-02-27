@@ -35,7 +35,7 @@ import org.junit.jupiter.api.io.TempDir;
 public class TestTrinityLakeNamespaceOps {
 
   private static final LakehouseDef LAKEHOUSE_DEF =
-      LakehouseDef.newBuilder().setNamespaceNameMaxSizeBytes(8).build();
+      ObjectDefinitions.newLakehouseDefBuilder().build();
 
   @TempDir private File tempDir;
 
@@ -61,7 +61,8 @@ public class TestTrinityLakeNamespaceOps {
   public void testCreateNamespace() {
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
 
-    NamespaceDef ns1Def = NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+    NamespaceDef ns1Def =
+        ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
     transaction = TrinityLake.createNamespace(storage, transaction, "ns1", ns1Def);
     TrinityLake.commitTransaction(storage, transaction);
 
@@ -81,7 +82,8 @@ public class TestTrinityLakeNamespaceOps {
   public void testCreateDescribeNamespace() {
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
 
-    NamespaceDef ns1Def = NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+    NamespaceDef ns1Def =
+        ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
     transaction = TrinityLake.createNamespace(storage, transaction, "ns1", ns1Def);
     TrinityLake.commitTransaction(storage, transaction);
 
@@ -95,7 +97,8 @@ public class TestTrinityLakeNamespaceOps {
   public void testCreateDescribeAlterDescribeNamespace() {
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
 
-    NamespaceDef ns1Def = NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+    NamespaceDef ns1Def =
+        ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
     transaction = TrinityLake.createNamespace(storage, transaction, "ns1", ns1Def);
     TrinityLake.commitTransaction(storage, transaction);
 
@@ -104,7 +107,8 @@ public class TestTrinityLakeNamespaceOps {
     NamespaceDef ns1DefDescribe = TrinityLake.describeNamespace(storage, transaction, "ns1");
     assertThat(ns1DefDescribe).isEqualTo(ns1Def);
 
-    NamespaceDef ns1DefAlter = NamespaceDef.newBuilder().putProperties("k1", "v2").build();
+    NamespaceDef ns1DefAlter =
+        ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v2").build();
     transaction = TrinityLake.alterNamespace(storage, transaction, "ns1", ns1DefAlter);
     TrinityLake.commitTransaction(storage, transaction);
 
@@ -118,7 +122,8 @@ public class TestTrinityLakeNamespaceOps {
   public void testCreateDescribeDropDescribeNamespace() {
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
 
-    NamespaceDef ns1Def = NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+    NamespaceDef ns1Def =
+        ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
     transaction = TrinityLake.createNamespace(storage, transaction, "ns1", ns1Def);
     TrinityLake.commitTransaction(storage, transaction);
 

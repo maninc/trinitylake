@@ -101,7 +101,7 @@ public class TrinityLake {
     String runningRootNodeFilePath = FileLocations.newNodeFilePath();
     TreeOperations.writeRootNodeFile(storage, runningRootNodeFilePath, transaction.runningRoot());
     TransactionDef transactionDef =
-        TransactionDef.newBuilder()
+        ObjectDefinitions.newTransactionDefBuilder()
             .setId(transaction.transactionId())
             .setIsolationLevel(transaction.isolationLevel())
             .setBeginningRootNodeFilePath(transaction.beginningRoot().path().get())

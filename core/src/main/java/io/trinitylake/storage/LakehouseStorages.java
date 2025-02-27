@@ -36,7 +36,7 @@ public class LakehouseStorages {
 
   private static final Map<String, String> STORAGE_SCHEME_TO_TYPE =
       ImmutableMap.<String, String>builder()
-          .put("local", STORAGE_TYPE_LOCAL)
+          .put("file", STORAGE_TYPE_LOCAL)
           .put("s3", STORAGE_TYPE_S3)
           .build();
 

@@ -41,11 +41,11 @@ public class TransactionOptions implements StringMapBased {
     this.isolationLevel =
         options.containsKey(ISOLATION_LEVEL)
             ? IsolationLevel.valueOf(options.get(ISOLATION_LEVEL).toUpperCase(Locale.ENGLISH))
-            : lakehouseDef.getTxnIsolationLevelDefault();
+            : lakehouseDef.getTxnIsolationLevel();
     // auto generate UUID if not specified
     this.id = PropertyUtil.propertyAsString(options, ID, UUID.randomUUID().toString());
     this.ttlMillis =
-        PropertyUtil.propertyAsLong(options, TTL_MILLIS, lakehouseDef.getTxnTtlDefaultMillis());
+        PropertyUtil.propertyAsLong(options, TTL_MILLIS, lakehouseDef.getTxnTtlMillis());
   }
 
   @Override

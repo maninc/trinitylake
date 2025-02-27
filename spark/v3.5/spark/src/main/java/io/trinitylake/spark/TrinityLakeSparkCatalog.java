@@ -13,6 +13,7 @@
  */
 package io.trinitylake.spark;
 
+import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
@@ -98,7 +99,8 @@ public class TrinityLakeSparkCatalog implements StagingTableCatalog, SupportsNam
       throws NamespaceAlreadyExistsException {
     String namespaceName = SparkToTrinityLake.namespaceName(namespace);
     RunningTransaction transaction = currentTransaction();
-    NamespaceDef namespaceDef = NamespaceDef.newBuilder().putAllProperties(properties).build();
+    NamespaceDef namespaceDef =
+        ObjectDefinitions.newNamespaceDefBuilder().putAllProperties(properties).build();
     try {
       TrinityLake.createNamespace(storage, transaction, namespaceName, namespaceDef);
     } catch (ObjectAlreadyExistsException e) {

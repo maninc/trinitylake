@@ -139,7 +139,7 @@ For example, consider a user creating a transaction with ID `123` with isolation
 
 ```java
 nsCatalog.createNamespace(
-        Namespace.of("system", "dtxns", "dtxn_123"), 
+        Namespace.of("sys", "dtxns", "dtxn_123"), 
         ImmutableMap.of("isolation-level", "serializable"));
 ```
 
@@ -147,15 +147,15 @@ nsCatalog.createNamespace(
 
 After creation, a user can access the specific isolated version of the lakehouse under the namespace.
 For example, consider a Trinity Lakehouse with namespace `ns1` and table `t1`,
-then the user should see a namespace `system.dtxns.dtxn_123.ns1` 
-and a table `system.dtxns.dtxn_123.ns1.t1` which the user can read and write to:
+then the user should see a namespace `sys.dtxns.dtxn_123.ns1` 
+and a table `sys.dtxns.dtxn_123.ns1.t1` which the user can read and write to:
 
 ```java
-assertThat(catalog.listNamespaces(Namespace.of("system", "dtxns", "dtxn_123")))
-        .containsExactly(Namespace.of("system", "dtxns", "dtxn_123", "ns1"));
+assertThat(catalog.listNamespaces(Namespace.of("sys", "dtxns", "dtxn_123")))
+        .containsExactly(Namespace.of("sys", "dtxns", "dtxn_123", "ns1"));
 
-assertThat(catalog.listTables(Namespace.of("system", "dtxns", "dtxn_123", "ns1")))
-        .containsExactly(TableIdentifier.of("system", "dtxns", "dtxn_123", "ns1", "t1"));
+assertThat(catalog.listTables(Namespace.of("sys", "dtxns", "dtxn_123", "ns1")))
+        .containsExactly(TableIdentifier.of("sys", "dtxns", "dtxn_123", "ns1", "t1"));
 ```
 
 ### Commit a transaction
@@ -164,7 +164,7 @@ In order to commit this transaction, set the namesapce property `commit` to `tru
 
 ```java
 nsCatalog.setProperties(
-        Namespace.of("system", "dtxns", "dtxn_123"), 
+        Namespace.of("sys", "dtxns", "dtxn_123"), 
         ImmutbaleMap.of("commit", "true"));
 ```
 
@@ -174,5 +174,5 @@ In order to rollback a transaction, perform a drop namespace:
 
 ```java
 nsCatalog.dropNamespace(
-        Namespace.of("system", "dtxns", "dtxn_123"));
+        Namespace.of("sys", "dtxns", "dtxn_123"));
 ```

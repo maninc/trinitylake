@@ -11,15 +11,10 @@ message LakehouseDef {
   uint32 namespace_name_max_size_bytes = 4;
   uint32 table_name_max_size_bytes = 5;
   uint32 view_name_max_size_bytes = 6;
-  uint32 file_path_max_size_bytes = 7;
-  uint64 node_file_max_size_bytes = 8;
-  map<string, string> properties = 9;
-  uint64 version_age_max_millis = 10;
-  uint32 versions_to_keep_min = 11;
-  map<uint64, uint64> version_age_max_millis_overrides = 12;
-  map<string, string> snapshots = 13;
-  uint64 txn_ttl_default_millis = 14;
-  IsolationLevel txn_isolation_level_default = 15;
+  uint64 node_file_max_size_bytes = 7;
+  map<string, string> properties = 8;
+  uint64 txn_ttl_millis = 9;
+  IsolationLevel txn_isolation_level = 10;
 }
 
 message NamespaceDef {

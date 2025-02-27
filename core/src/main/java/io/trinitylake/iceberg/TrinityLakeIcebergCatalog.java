@@ -14,12 +14,12 @@
 package io.trinitylake.iceberg;
 
 import com.google.protobuf.Descriptors;
+import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.TrinityLakeRuntimeException;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
-import io.trinitylake.models.TableDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableList;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
 import io.trinitylake.relocated.com.google.common.collect.Lists;
@@ -83,7 +83,12 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   @Override
   public void initialize(String name, Map<String, String> properties) {
     String warehouse =
-        PropertyUtil.propertyAsString(properties, CatalogProperties.WAREHOUSE_LOCATION);
+        PropertyUtil.propertyAsNullableString(properties, CatalogProperties.WAREHOUSE_LOCATION);
+
+    if (!warehouse.contains("://")) {
+      warehouse = "file://" + warehouse;
+    }
+
     String storageType =
         PropertyUtil.propertyAsNullableString(
             properties, TrinityLakeIcebergCatalogProperties.STORAGE_TYPE);
@@ -98,7 +103,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     }
     storageProperties.put(LakehouseStorages.STORAGE_ROOT, warehouse);
 
-    this.storage = LakehouseStorages.initialize(properties);
+    this.storage = LakehouseStorages.initialize(storageProperties);
     this.catalogProperties = new TrinityLakeIcebergCatalogProperties(properties);
     this.allProperties = ImmutableMap.copyOf(storageOpsProperties);
     this.catalogName = name;
@@ -178,7 +183,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     if (parseResult.isSystem()) {
-      LakehouseDef.Builder builder = LakehouseDef.newBuilder();
+      LakehouseDef.Builder builder = ObjectDefinitions.newLakehouseDefBuilder();
       for (Map.Entry<String, String> entry : properties.entrySet()) {
         Descriptors.FieldDescriptor field =
             builder.getDescriptorForType().findFieldByName(entry.getKey());
@@ -196,7 +201,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
             storage,
             transaction,
             parseResult.namespaceName(),
-            NamespaceDef.newBuilder()
+            ObjectDefinitions.newNamespaceDefBuilder()
                 .putAllProperties(properties)
                 .setId(UUID.randomUUID().toString())
                 .build());
@@ -215,7 +220,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     NamespaceDef currentDef =
         TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
-    NamespaceDef.Builder newDefBuilder = NamespaceDef.newBuilder().mergeFrom(currentDef);
+    NamespaceDef.Builder newDefBuilder =
+        ObjectDefinitions.newNamespaceDefBuilder().mergeFrom(currentDef);
     propertyKeys.forEach(newDefBuilder::removeProperties);
 
     transaction =
@@ -237,7 +243,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     NamespaceDef currentDef =
         TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
-    NamespaceDef.Builder newDefBuilder = NamespaceDef.newBuilder().mergeFrom(currentDef);
+    NamespaceDef.Builder newDefBuilder =
+        ObjectDefinitions.newNamespaceDefBuilder().mergeFrom(currentDef);
     properties.forEach(newDefBuilder::putProperties);
 
     transaction =
@@ -319,8 +326,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
             transaction,
             parseResult.namespaceName(),
             IcebergToTrinityLake.tableName(tableIdentifier),
-            TableDef.newBuilder()
-                .setId(UUID.randomUUID().toString())
+            ObjectDefinitions.newTableDefBuilder()
                 .setTableFormat("ICEBERG")
                 .putFormatProperties("metadata_location", metadataFileLocation)
                 .build());

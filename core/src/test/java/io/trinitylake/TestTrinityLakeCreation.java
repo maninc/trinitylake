@@ -15,7 +15,6 @@ package io.trinitylake;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
 import io.trinitylake.storage.BasicLakehouseStorage;
 import io.trinitylake.storage.CommonStorageOpsProperties;
@@ -52,7 +51,7 @@ public class TestTrinityLakeCreation {
 
   @Test
   public void testCreateLakehouse() {
-    TrinityLake.createLakehouse(storage, LakehouseDef.newBuilder().build());
+    TrinityLake.createLakehouse(storage, ObjectDefinitions.newLakehouseDefBuilder().build());
     assertThat(storage.exists(FileLocations.LATEST_VERSION_HINT_FILE_PATH)).isTrue();
     TreeRoot root = TreeOperations.findLatestRoot(storage);
     assertThat(root.previousRootNodeFilePath().isPresent()).isFalse();

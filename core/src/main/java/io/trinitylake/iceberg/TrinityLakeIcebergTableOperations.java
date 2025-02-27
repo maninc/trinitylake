@@ -13,6 +13,7 @@
  */
 package io.trinitylake.iceberg;
 
+import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.models.TableDef;
@@ -149,7 +150,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
 
     String newMetadataLocation = writeNewMetadataIfRequired(base == null, metadata);
     TableDef.Builder newTableDef =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .mergeFrom(currentTableDef)
             .putFormatProperties(
                 TrinityLakeToIceberg.METADATA_LOCATION_FORMAT_PROPERTY, newMetadataLocation);

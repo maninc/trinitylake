@@ -39,10 +39,10 @@ import org.junit.jupiter.api.io.TempDir;
 public class TestTrinityLakeTableOps {
 
   private static final LakehouseDef LAKEHOUSE_DEF =
-      LakehouseDef.newBuilder().setNamespaceNameMaxSizeBytes(8).setTableNameMaxSizeBytes(8).build();
+      ObjectDefinitions.newLakehouseDefBuilder().build();
   private static final String NS1 = "ns1";
   private static final NamespaceDef NS1_DEF =
-      NamespaceDef.newBuilder().putProperties("k1", "v1").build();
+      ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
 
   @TempDir private File tempDir;
 
@@ -70,7 +70,7 @@ public class TestTrinityLakeTableOps {
   @Test
   public void testCreateTable() {
     TableDef tableDef =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .setSchema(
                 Schema.newBuilder()
                     .addColumns(Column.newBuilder().setName("c1").setType(DataType.VARCHAR).build())
@@ -97,7 +97,7 @@ public class TestTrinityLakeTableOps {
   @Test
   public void testCreateDescribeTable() {
     TableDef tableDef =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .setSchema(
                 Schema.newBuilder()
                     .addColumns(Column.newBuilder().setName("c1").setType(DataType.VARCHAR).build())
@@ -118,7 +118,7 @@ public class TestTrinityLakeTableOps {
   @Test
   public void testCreateDescribeAlterDescribeTable() {
     TableDef tableDef =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .setSchema(
                 Schema.newBuilder()
                     .addColumns(Column.newBuilder().setName("c1").setType(DataType.VARCHAR).build())
@@ -136,7 +136,7 @@ public class TestTrinityLakeTableOps {
     assertThat(t1DefDescribe).isEqualTo(tableDef);
 
     TableDef t1DefAlter =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .setSchema(
                 Schema.newBuilder()
                     .addColumns(Column.newBuilder().setName("c1").setType(DataType.VARCHAR).build())
@@ -156,7 +156,7 @@ public class TestTrinityLakeTableOps {
   @Test
   public void testCreateDescribeDropDescribeNamespace() {
     TableDef tableDef =
-        TableDef.newBuilder()
+        ObjectDefinitions.newTableDefBuilder()
             .setSchema(
                 Schema.newBuilder()
                     .addColumns(Column.newBuilder().setName("c1").setType(DataType.VARCHAR).build())

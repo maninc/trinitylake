@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.CatalogTests;
+import org.apache.iceberg.catalog.Namespace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,6 +36,8 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
         initCatalog(
             "trinitylake",
             ImmutableMap.of(CatalogProperties.WAREHOUSE_LOCATION, warehouse.toString()));
+    catalog.createNamespace(
+        Namespace.of(TrinityLakeIcebergCatalogProperties.SYSTEM_NAMESPACE_NAME_DEFAULT));
   }
 
   @Override
@@ -49,5 +52,35 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
     properties.put(CatalogProperties.WAREHOUSE_LOCATION, warehouse.toString());
     properties.putAll(additionalProperties);
     return new TrinityLakeIcebergCatalog("trinitylake", properties);
+  }
+
+  @Override
+  protected boolean supportsEmptyNamespace() {
+    return true;
+  }
+
+  @Override
+  protected boolean supportsNamespaceProperties() {
+    return true;
+  }
+
+  @Override
+  protected boolean supportsNamesWithDot() {
+    return true;
+  }
+
+  @Override
+  protected boolean supportsNamesWithSlashes() {
+    return true;
+  }
+
+  @Override
+  protected boolean supportsNestedNamespaces() {
+    return false;
+  }
+
+  @Override
+  protected boolean supportsServerSideRetry() {
+    return false;
   }
 }

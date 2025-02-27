@@ -38,18 +38,10 @@ public class TestObjectDefinitions {
   private final String testNamespaceName = "test-namespace";
   private final String testViewName = "test-view";
 
-  private final LakehouseDef lakehouseDef =
-      LakehouseDef.newBuilder()
-          .setMajorVersion(2)
-          .setVersionsToKeepMin(5)
-          .setTableNameMaxSizeBytes(256)
-          .setViewNameMaxSizeBytes(256)
-          .setNamespaceNameMaxSizeBytes(64)
-          .build();
+  private final LakehouseDef lakehouseDef = ObjectDefinitions.newLakehouseDefBuilder().build();
 
   private final ViewDef testViewDef =
-      ViewDef.newBuilder()
-          .setId("0")
+      ObjectDefinitions.newViewDefBuilder()
           .setSchemaBinding(false)
           .addSqlRepresentations(
               SQLRepresentation.newBuilder()

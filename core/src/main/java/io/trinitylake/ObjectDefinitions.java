@@ -15,6 +15,7 @@ package io.trinitylake;
 
 import io.trinitylake.exception.StorageReadFailureException;
 import io.trinitylake.exception.StorageWriteFailureException;
+import io.trinitylake.models.IsolationLevel;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
 import io.trinitylake.models.TableDef;
@@ -24,8 +25,27 @@ import io.trinitylake.storage.LakehouseStorage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class ObjectDefinitions {
+
+  public static final int LAKEHOUSE_MAJOR_VERSION_DEFAULT = 0;
+
+  public static final int LAKEHOUSE_ORDER_DEFAULT = 128;
+
+  public static final int LAKEHOUSE_NAMESPACE_NAME_MAX_SIZE_BYTES_DEFAULT = 100;
+
+  public static final int LAKEHOUSE_TABLE_NAME_MAX_SIZE_BYTES_DEFAULT = 100;
+
+  public static final int LAKEHOUSE_VIEW_NAME_MAX_SIZE_BYTES_DEFAULT = 100;
+
+  public static final long LAKEHOUSE_NODE_FILE_MAX_SIZE_BYTES_DEFAULT = 1048576;
+
+  public static final IsolationLevel LAKEHOUSE_TRANSACTION_ISOLATION_LEVEL_DEFAULT =
+      IsolationLevel.SNAPSHOT;
+
+  public static final long LAKEHOUSE_TRANSACTION_TTL_MILLIS_DEFAULT = TimeUnit.DAYS.toMillis(3);
 
   private ObjectDefinitions() {}
 
@@ -50,6 +70,19 @@ public class ObjectDefinitions {
           path,
           storage.root());
     }
+  }
+
+  public static LakehouseDef.Builder newLakehouseDefBuilder() {
+    return LakehouseDef.newBuilder()
+        .setId(UUID.randomUUID().toString())
+        .setMajorVersion(LAKEHOUSE_MAJOR_VERSION_DEFAULT)
+        .setOrder(LAKEHOUSE_ORDER_DEFAULT)
+        .setNamespaceNameMaxSizeBytes(LAKEHOUSE_NAMESPACE_NAME_MAX_SIZE_BYTES_DEFAULT)
+        .setTableNameMaxSizeBytes(LAKEHOUSE_TABLE_NAME_MAX_SIZE_BYTES_DEFAULT)
+        .setViewNameMaxSizeBytes(LAKEHOUSE_VIEW_NAME_MAX_SIZE_BYTES_DEFAULT)
+        .setNodeFileMaxSizeBytes(LAKEHOUSE_NODE_FILE_MAX_SIZE_BYTES_DEFAULT)
+        .setTxnIsolationLevel(LAKEHOUSE_TRANSACTION_ISOLATION_LEVEL_DEFAULT)
+        .setTxnTtlMillis(LAKEHOUSE_TRANSACTION_TTL_MILLIS_DEFAULT);
   }
 
   public static void writeNamespaceDef(
@@ -78,6 +111,10 @@ public class ObjectDefinitions {
     }
   }
 
+  public static NamespaceDef.Builder newNamespaceDefBuilder() {
+    return NamespaceDef.newBuilder().setId(UUID.randomUUID().toString());
+  }
+
   public static void writeTableDef(
       LakehouseStorage storage,
       String path,
@@ -95,6 +132,10 @@ public class ObjectDefinitions {
           path,
           storage.root());
     }
+  }
+
+  public static TableDef.Builder newTableDefBuilder() {
+    return TableDef.newBuilder().setId(UUID.randomUUID().toString());
   }
 
   public static TableDef readTableDef(LakehouseStorage storage, String path) {
@@ -134,9 +175,17 @@ public class ObjectDefinitions {
     }
   }
 
+  public static ViewDef.Builder newViewDefBuilder() {
+    return ViewDef.newBuilder().setId(UUID.randomUUID().toString());
+  }
+
   public static void writeTransactionDef(
       LakehouseStorage storage, String path, TransactionDef transactionDef) {
-    try (OutputStream stream = storage.startCommit(path)) {
+    // TODO: The transaction definition has a fixed path name.
+    //  New changes to the transaction state can overwrite the old one.
+    //  Ideally we should also use the commit mechanism with a version number for each change.
+    //  we will do that in later iterations.
+    try (OutputStream stream = storage.startOverwrite(path)) {
       transactionDef.writeTo(stream);
     } catch (IOException e) {
       throw new StorageWriteFailureException(
@@ -158,5 +207,9 @@ public class ObjectDefinitions {
           path,
           storage.root());
     }
+  }
+
+  public static TransactionDef.Builder newTransactionDefBuilder() {
+    return TransactionDef.newBuilder();
   }
 }
