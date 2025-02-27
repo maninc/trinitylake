@@ -17,6 +17,8 @@ import com.google.protobuf.Descriptors;
 import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
+import io.trinitylake.exception.ObjectAlreadyExistsException;
+import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.exception.TrinityLakeRuntimeException;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
@@ -116,6 +118,10 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public boolean namespaceExists(Namespace namespace) {
+    if (namespace.isEmpty()) {
+      return false;
+    }
+
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     if (parseResult.isSystem()) {
@@ -168,9 +174,13 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    NamespaceDef namespaceDef =
-        TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
-    return namespaceDef.getPropertiesMap();
+    try {
+      NamespaceDef namespaceDef =
+          TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+      return namespaceDef.getPropertiesMap();
+    } catch (ObjectNotFoundException e) {
+      throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
+    }
   }
 
   @Override
@@ -196,15 +206,20 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     }
 
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    transaction =
-        TrinityLake.createNamespace(
-            storage,
-            transaction,
-            parseResult.namespaceName(),
-            ObjectDefinitions.newNamespaceDefBuilder()
-                .putAllProperties(properties)
-                .setId(UUID.randomUUID().toString())
-                .build());
+
+    try {
+      transaction =
+          TrinityLake.createNamespace(
+              storage,
+              transaction,
+              parseResult.namespaceName(),
+              ObjectDefinitions.newNamespaceDefBuilder()
+                  .putAllProperties(properties)
+                  .setId(UUID.randomUUID().toString())
+                  .build());
+    } catch (ObjectAlreadyExistsException e) {
+      throw new AlreadyExistsException("Namespace already exists: %s", namespace);
+    }
 
     if (!parseResult.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);
@@ -218,8 +233,13 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
 
-    NamespaceDef currentDef =
-        TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+    NamespaceDef currentDef;
+    try {
+      currentDef = TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+    } catch (ObjectNotFoundException e) {
+      throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
+    }
+
     NamespaceDef.Builder newDefBuilder =
         ObjectDefinitions.newNamespaceDefBuilder().mergeFrom(currentDef);
     propertyKeys.forEach(newDefBuilder::removeProperties);
@@ -241,8 +261,13 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
 
-    NamespaceDef currentDef =
-        TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+    NamespaceDef currentDef;
+    try {
+      currentDef = TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+    } catch (ObjectNotFoundException e) {
+      throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
+    }
+
     NamespaceDef.Builder newDefBuilder =
         ObjectDefinitions.newNamespaceDefBuilder().mergeFrom(currentDef);
     properties.forEach(newDefBuilder::putProperties);
@@ -262,7 +287,13 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    transaction = TrinityLake.dropNamespace(storage, transaction, parseResult.namespaceName());
+
+    try {
+      transaction = TrinityLake.dropNamespace(storage, transaction, parseResult.namespaceName());
+    } catch (ObjectNotFoundException e) {
+      LOG.warn("Detected dropping non-existent namespace {}", namespace);
+      return false;
+    }
 
     if (!parseResult.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);

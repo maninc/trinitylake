@@ -56,7 +56,7 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
 
   @Override
   protected boolean supportsEmptyNamespace() {
-    return true;
+    return false;
   }
 
   @Override

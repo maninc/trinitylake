@@ -24,6 +24,8 @@ public class IcebergToTrinityLake {
 
   public static IcebergNamespaceParseResult parseNamespace(
       Namespace namespace, TrinityLakeIcebergCatalogProperties catalogProperties) {
+    ValidationUtil.checkArgument(
+        !namespace.isEmpty(), "Empty namespace is not allowed in TrinityLake");
 
     if (!catalogProperties.systemNamespaceName().equals(namespace.level(0))) {
       ValidationUtil.checkArgument(
