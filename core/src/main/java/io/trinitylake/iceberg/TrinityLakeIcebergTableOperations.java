@@ -16,6 +16,7 @@ package io.trinitylake.iceberg;
 import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
+import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.TableDef;
 import io.trinitylake.relocated.com.google.common.base.Objects;
 import io.trinitylake.storage.LakehouseStorage;
@@ -42,7 +43,6 @@ import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.CommitFailedException;
-import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.LocationProvider;
@@ -64,9 +64,9 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
   private RunningTransaction transaction;
   private String tableName;
   private String namespaceName;
-  private String fullTableName;
-  // nullable
-  private String distTransactionId;
+  private String namesapceTableName;
+  // use nullable instead of optional to make it serializable
+  private String nullableDistTransactionId;
 
   private FileIO fileIO;
 
@@ -81,14 +81,14 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
       RunningTransaction transaction,
       String namespaceName,
       String tableName,
-      Optional<String> distTransactionId,
+      Optional<String> nullableDistTransactionId,
       Map<String, String> allProperties) {
     this.storage = storage;
     this.transaction = transaction;
     this.namespaceName = namespaceName;
     this.tableName = tableName;
-    this.fullTableName = String.format("%s.%s", namespaceName, tableName);
-    this.distTransactionId = distTransactionId.orElse(null);
+    this.namesapceTableName = String.format("%s.%s", namespaceName, tableName);
+    this.nullableDistTransactionId = nullableDistTransactionId.orElse(null);
     this.fileIO = initializeFileIO(allProperties);
   }
 
@@ -111,18 +111,20 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     try {
       this.currentTableDef =
           TrinityLake.describeTable(storage, transaction, namespaceName, tableName);
-      this.currentMetadataLocation = TrinityLakeToIceberg.tableMetadataLocation(currentTableDef);
-      loadMetadata(currentMetadataLocation);
-    } catch (NoSuchTableException e) {
+      loadMetadata(TrinityLakeToIceberg.tableMetadataLocation(currentTableDef));
+    } catch (ObjectNotFoundException e) {
+      currentMetadata = null;
+      currentTableDef = null;
+      currentMetadataLocation = null;
+      version = -1;
+
       if (currentMetadataWasAvailable) {
         LOG.warn("Could not find the table during refresh, setting current metadata to null", e);
         shouldRefresh = true;
+        throw e;
+      } else {
+        shouldRefresh = false;
       }
-
-      currentMetadata = null;
-      currentTableDef = null;
-      version = -1;
-      throw e;
     }
     return current();
   }
@@ -136,7 +138,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
       } else {
         // when current is non-null, the table exists. but when base is null, the commit is trying
         // to create the table
-        throw new AlreadyExistsException("Table already exists: %s", fullTableName);
+        throw new AlreadyExistsException("Table already exists: %s", namesapceTableName);
       }
     }
 
@@ -149,21 +151,31 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     long start = System.currentTimeMillis();
 
     String newMetadataLocation = writeNewMetadataIfRequired(base == null, metadata);
-    TableDef.Builder newTableDef =
-        ObjectDefinitions.newTableDefBuilder()
-            .mergeFrom(currentTableDef)
-            .putFormatProperties(
-                TrinityLakeToIceberg.METADATA_LOCATION_FORMAT_PROPERTY, newMetadataLocation);
+    TableDef.Builder newTableDef = ObjectDefinitions.newTableDefBuilder();
+
+    if (currentTableDef != null) {
+      newTableDef.mergeFrom(currentTableDef);
+    }
+
+    newTableDef.putFormatProperties(
+        TrinityLakeToIceberg.METADATA_LOCATION_FORMAT_PROPERTY, newMetadataLocation);
 
     if (currentMetadataLocation != null) {
       newTableDef.putFormatProperties(
           TrinityLakeToIceberg.PREVIOUS_METADATA_LOCATION_FORMAT_PROPERTY, currentMetadataLocation);
     }
 
-    transaction =
-        TrinityLake.alterTable(storage, transaction, namespaceName, tableName, newTableDef.build());
+    if (currentMetadata != null) {
+      transaction =
+          TrinityLake.alterTable(
+              storage, transaction, namespaceName, tableName, newTableDef.build());
+    } else {
+      transaction =
+          TrinityLake.createTable(
+              storage, transaction, namespaceName, tableName, newTableDef.build());
+    }
 
-    if (distTransactionId != null) {
+    if (nullableDistTransactionId != null) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       TrinityLake.commitTransaction(storage, transaction);
@@ -172,7 +184,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     shouldRefresh = true;
     LOG.info(
         "Successfully committed to table {} in {} ms",
-        fullTableName,
+        namesapceTableName,
         System.currentTimeMillis() - start);
   }
 
@@ -343,7 +355,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
   protected CommitStatus checkCommitStatus(String newMetadataLocation, TableMetadata config) {
     return CommitStatus.valueOf(
         checkCommitStatus(
-                fullTableName,
+                namesapceTableName,
                 newMetadataLocation,
                 config.properties(),
                 () -> checkCurrentMetadataLocation(newMetadataLocation))

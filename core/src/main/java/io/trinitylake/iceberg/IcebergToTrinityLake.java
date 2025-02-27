@@ -68,7 +68,10 @@ public class IcebergToTrinityLake {
   }
 
   public static String fullTableName(
-      IcebergNamespaceParseResult parseResult, TableIdentifier tableIdentifier) {
-    return String.format("%s/%s", parseResult.namespaceName(), tableIdentifier.name());
+      String catalogName,
+      IcebergNamespaceParseResult parseResult,
+      TableIdentifier tableIdentifier) {
+    return String.format(
+        "%s.%s.%s", catalogName, parseResult.namespaceName(), tableIdentifier.name());
   }
 }

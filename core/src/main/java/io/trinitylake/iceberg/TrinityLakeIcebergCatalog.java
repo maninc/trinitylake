@@ -341,7 +341,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
             IcebergToTrinityLake.tableName(tableIdentifier),
             parseResult.distTransactionId(),
             allProperties);
-    return new BaseTable(ops, IcebergToTrinityLake.fullTableName(parseResult, tableIdentifier));
+    return new BaseTable(
+        ops, IcebergToTrinityLake.fullTableName(catalogName, parseResult, tableIdentifier));
   }
 
   @Override
@@ -368,7 +369,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       TrinityLake.commitTransaction(storage, transaction);
     }
 
-    String fullTableName = IcebergToTrinityLake.fullTableName(parseResult, tableIdentifier);
+    String fullTableName =
+        IcebergToTrinityLake.fullTableName(catalogName, parseResult, tableIdentifier);
     TableOperations ops =
         new TrinityLakeIcebergTableOperations(
             storage,
@@ -599,6 +601,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
               IcebergToTrinityLake.tableName(tableIdentifier),
               parseResult.distTransactionId(),
               allProperties);
+
       if (ops.current() != null) {
         throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
       }
@@ -614,7 +617,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
         throw new AlreadyExistsException("Table was created concurrently: %s", tableIdentifier);
       }
 
-      return new BaseTable(ops, IcebergToTrinityLake.fullTableName(parseResult, tableIdentifier));
+      return new BaseTable(
+          ops, IcebergToTrinityLake.fullTableName(catalogName, parseResult, tableIdentifier));
     }
 
     @Override

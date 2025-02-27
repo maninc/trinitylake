@@ -83,4 +83,15 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
   protected boolean supportsServerSideRetry() {
     return false;
   }
+
+  @Override
+  protected boolean requiresNamespaceCreate() {
+    return true;
+  }
+
+  //  @Test
+  //  @Override
+  //  public void testBasicCreateTable() {
+  //    super.testBasicCreateTable();
+  //  }
 }
