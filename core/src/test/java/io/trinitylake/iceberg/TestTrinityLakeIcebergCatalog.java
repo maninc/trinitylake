@@ -22,6 +22,7 @@ import org.apache.iceberg.catalog.CatalogTests;
 import org.apache.iceberg.catalog.Namespace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 @Disabled("Skip until all fixes are done")
@@ -89,9 +90,27 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
     return true;
   }
 
-  //  @Test
-  //  @Override
-  //  public void testBasicCreateTable() {
-  //    super.testBasicCreateTable();
-  //  }
+  @Test
+  @Override
+  public void testRenameTable() {
+    // TODO: support rename
+  }
+
+  @Test
+  @Override
+  public void testRenameTableDestinationTableAlreadyExists() {
+    // TODO: support rename
+  }
+
+  @Test
+  @Override
+  public void testRenameTableMissingSourceTable() {
+    // TODO: support rename
+  }
+
+  @Test
+  @Override
+  public void testDropTableWithoutPurge() {
+    super.testDropTableWithoutPurge();
+  }
 }

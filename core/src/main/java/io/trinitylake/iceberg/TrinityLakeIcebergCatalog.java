@@ -320,11 +320,13 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
 
-    return TrinityLake.tableExists(
-        storage,
-        transaction,
-        parseResult.namespaceName(),
-        IcebergToTrinityLake.tableName(tableIdentifier));
+    boolean exists =
+        TrinityLake.tableExists(
+            storage,
+            transaction,
+            parseResult.namespaceName(),
+            IcebergToTrinityLake.tableName(tableIdentifier));
+    return exists;
   }
 
   @Override
@@ -352,16 +354,20 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
 
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    transaction =
-        TrinityLake.createTable(
-            storage,
-            transaction,
-            parseResult.namespaceName(),
-            IcebergToTrinityLake.tableName(tableIdentifier),
-            ObjectDefinitions.newTableDefBuilder()
-                .setTableFormat("ICEBERG")
-                .putFormatProperties("metadata_location", metadataFileLocation)
-                .build());
+    try {
+      transaction =
+          TrinityLake.createTable(
+              storage,
+              transaction,
+              parseResult.namespaceName(),
+              IcebergToTrinityLake.tableName(tableIdentifier),
+              ObjectDefinitions.newTableDefBuilder()
+                  .setTableFormat("ICEBERG")
+                  .putFormatProperties("metadata_location", metadataFileLocation)
+                  .build());
+    } catch (ObjectAlreadyExistsException e) {
+      throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
+    }
 
     if (!parseResult.distTransactionId().isPresent()) {
       TrinityLake.saveDistTransaction(storage, transaction);
@@ -425,6 +431,14 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public boolean dropTable(TableIdentifier tableIdentifier) {
+    return dropTable(tableIdentifier, true /* drop data and metadata files */);
+  }
+
+  @Override
+  public boolean dropTable(TableIdentifier tableIdentifier, boolean purge) {
+    // TODO: provide a clear definition for purge vs no purge behavior.
+    //  before that we will ignore the purge flag.
+
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(tableIdentifier.namespace(), catalogProperties);
 
@@ -508,11 +522,6 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   }
 
   @Override
-  public boolean dropTable(TableIdentifier tableIdentifier, boolean b) {
-    return false;
-  }
-
-  @Override
   public void renameTable(TableIdentifier tableIdentifier, TableIdentifier tableIdentifier1) {
     // TODO: add support
   }
@@ -530,7 +539,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   private void commitOrSaveTransaction(
       IcebergNamespaceParseResult parseResult, RunningTransaction transaction) {
-    if (!parseResult.distTransactionId().isPresent()) {
+    if (parseResult.distTransactionId().isPresent()) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       TrinityLake.commitTransaction(storage, transaction);

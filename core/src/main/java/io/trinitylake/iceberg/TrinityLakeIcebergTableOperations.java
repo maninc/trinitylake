@@ -17,6 +17,7 @@ import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.ObjectNotFoundException;
+import io.trinitylake.exception.StorageAtomicSealFailureException;
 import io.trinitylake.models.TableDef;
 import io.trinitylake.relocated.com.google.common.base.Objects;
 import io.trinitylake.storage.LakehouseStorage;
@@ -178,7 +179,13 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     if (nullableDistTransactionId != null) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
-      TrinityLake.commitTransaction(storage, transaction);
+      try {
+        TrinityLake.commitTransaction(storage, transaction);
+      } catch (StorageAtomicSealFailureException e) {
+        throw new CommitFailedException(e, "Detected conflicting transaction in lakehouse");
+      }
+      // begin a new transaction since the previous one is already committed
+      transaction = TrinityLake.beginTransaction(storage);
     }
 
     shouldRefresh = true;
