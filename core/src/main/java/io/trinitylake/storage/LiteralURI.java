@@ -14,13 +14,14 @@
 package io.trinitylake.storage;
 
 import io.trinitylake.util.ValidationUtil;
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * A URI that should be interpreted literally. Special characters like `..` and `.` should be
  * prohibited.
  */
-public class LiteralURI {
+public class LiteralURI implements Serializable {
   private static final String SCHEME_DELIM = "://";
   private static final String PATH_DELIM = "/";
   private static final String QUERY_DELIM = "\\?";

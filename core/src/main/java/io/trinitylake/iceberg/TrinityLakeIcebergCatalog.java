@@ -64,21 +64,38 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   private String catalogName;
   private Map<String, String> allProperties;
 
+  /**
+   * Constructor for dynamic initialization. It is expected to call {@code initialize} after using
+   * this constructor
+   */
   public TrinityLakeIcebergCatalog() {}
+
+  /**
+   * Constructor for directly initializing a catalog
+   *
+   * @param name catalog name
+   * @param properties catalog properties
+   */
+  public TrinityLakeIcebergCatalog(String name, Map<String, String> properties) {
+    initialize(name, properties);
+  }
 
   @Override
   public void initialize(String name, Map<String, String> properties) {
     String warehouse =
         PropertyUtil.propertyAsString(properties, CatalogProperties.WAREHOUSE_LOCATION);
     String storageType =
-        PropertyUtil.propertyAsString(properties, TrinityLakeIcebergCatalogProperties.STORAGE_TYPE);
+        PropertyUtil.propertyAsNullableString(
+            properties, TrinityLakeIcebergCatalogProperties.STORAGE_TYPE);
     Map<String, String> storageOpsProperties =
         PropertyUtil.propertiesWithPrefix(
             properties, TrinityLakeIcebergCatalogProperties.STORAGE_OPS_PROPERTIES_PREFIX);
 
     Map<String, String> storageProperties = Maps.newHashMap();
     storageProperties.putAll(storageOpsProperties);
-    storageProperties.put(LakehouseStorages.STORAGE_TYPE, storageType);
+    if (storageType != null) {
+      storageProperties.put(LakehouseStorages.STORAGE_TYPE, storageType);
+    }
     storageProperties.put(LakehouseStorages.STORAGE_ROOT, warehouse);
 
     this.storage = LakehouseStorages.initialize(properties);

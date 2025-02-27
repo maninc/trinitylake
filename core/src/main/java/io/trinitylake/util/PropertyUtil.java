@@ -97,6 +97,10 @@ public class PropertyUtil {
     return value;
   }
 
+  public static String propertyAsNullableString(Map<String, String> properties, String property) {
+    return properties.get(property);
+  }
+
   /**
    * Returns subset of provided map with keys matching the provided prefix. Matching is
    * case-sensitive and the matching prefix is removed from the keys in returned map.

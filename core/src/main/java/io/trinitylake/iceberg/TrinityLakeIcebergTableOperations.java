@@ -19,6 +19,7 @@ import io.trinitylake.models.TableDef;
 import io.trinitylake.relocated.com.google.common.base.Objects;
 import io.trinitylake.storage.LakehouseStorage;
 import io.trinitylake.util.ValidationUtil;
+import java.io.Serializable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -51,7 +52,7 @@ import org.apache.iceberg.util.Tasks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TrinityLakeIcebergTableOperations implements TableOperations {
+public class TrinityLakeIcebergTableOperations implements TableOperations, Serializable {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(TrinityLakeIcebergTableOperations.class);
@@ -63,7 +64,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations {
   private String tableName;
   private String namespaceName;
   private String fullTableName;
-  private Optional<String> distTransactionId;
+  // nullable
+  private String distTransactionId;
 
   private FileIO fileIO;
 
@@ -85,7 +87,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations {
     this.namespaceName = namespaceName;
     this.tableName = tableName;
     this.fullTableName = String.format("%s.%s", namespaceName, tableName);
-    this.distTransactionId = distTransactionId;
+    this.distTransactionId = distTransactionId.orElse(null);
     this.fileIO = initializeFileIO(allProperties);
   }
 
@@ -159,7 +161,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations {
 
     transaction =
         TrinityLake.alterTable(storage, transaction, namespaceName, tableName, newTableDef.build());
-    if (distTransactionId.isPresent()) {
+
+    if (distTransactionId != null) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       TrinityLake.commitTransaction(storage, transaction);

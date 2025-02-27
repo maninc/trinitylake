@@ -17,10 +17,11 @@ import io.trinitylake.Initializable;
 import io.trinitylake.storage.local.LocalInputStream;
 import java.io.Closeable;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.List;
 
 /** Common operations that should be supported by a TrinityLake storage */
-public interface StorageOps extends Closeable, Initializable {
+public interface StorageOps extends Closeable, Initializable, Serializable {
 
   StorageOpsProperties commonProperties();
 

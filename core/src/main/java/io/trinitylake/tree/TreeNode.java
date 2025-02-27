@@ -13,10 +13,11 @@
  */
 package io.trinitylake.tree;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 
-public interface TreeNode {
+public interface TreeNode extends Serializable {
 
   /**
    * Path for a tree node, if the node is persisted in storage

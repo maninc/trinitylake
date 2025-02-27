@@ -17,6 +17,7 @@ import io.trinitylake.storage.local.LocalInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
  * A Lakehouse storage starts with a root URI location. Most access to the lakehouse storage should
  * be to paths under the root. Accessing the full URI should directly use {@link #ops()}.
  */
-public interface LakehouseStorage extends Closeable {
+public interface LakehouseStorage extends Closeable, Serializable {
 
   LiteralURI root();
 

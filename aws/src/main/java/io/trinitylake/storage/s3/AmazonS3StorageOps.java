@@ -34,6 +34,7 @@ import io.trinitylake.util.FileUtil;
 import io.trinitylake.util.Pair;
 import java.io.File;
 import java.io.OutputStream;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -44,7 +45,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,13 +71,12 @@ public class AmazonS3StorageOps implements StorageOps {
 
   private static volatile ExecutorService executorService;
 
-  private S3AsyncClient s3;
-  private S3TransferManager transferManager;
   private CommonStorageOpsProperties commonProperties;
   private AmazonS3StorageOpsProperties s3Properties;
 
-  private AtomicBoolean isResourceClosed = new AtomicBoolean(false);
-  private Cache<LiteralURI, Pair<FileDownload, File>> preparedFiles;
+  private transient volatile S3AsyncClient s3;
+  private transient volatile S3TransferManager transferManager;
+  private transient volatile Cache<LiteralURI, Pair<FileDownload, File>> preparedFiles;
 
   public AmazonS3StorageOps() {
     this(CommonStorageOpsProperties.instance(), AmazonS3StorageOpsProperties.instance());
@@ -87,49 +86,18 @@ public class AmazonS3StorageOps implements StorageOps {
       CommonStorageOpsProperties commonProperties, AmazonS3StorageOpsProperties s3Properties) {
     this.commonProperties = commonProperties;
     this.s3Properties = s3Properties;
-    this.s3 = initializeS3AsyncClient(s3Properties);
-    this.transferManager = S3TransferManager.builder().s3Client(s3).build();
-    this.preparedFiles = initializePreparedFilesCache(commonProperties);
+
+    initializeS3AsyncClient();
+    initializePreparedFilesCache();
   }
 
   @Override
   public void initialize(Map<String, String> properties) {
     this.commonProperties = new CommonStorageOpsProperties(properties);
     this.s3Properties = new AmazonS3StorageOpsProperties(properties);
-    this.s3 = initializeS3AsyncClient(s3Properties);
-    this.transferManager = S3TransferManager.builder().s3Client(s3).build();
-    this.preparedFiles = initializePreparedFilesCache(commonProperties);
-  }
 
-  private static S3AsyncClient initializeS3AsyncClient(AmazonS3StorageOpsProperties s3Properties) {
-    S3AsyncClientBuilder builder = S3AsyncClient.builder();
-    if (s3Properties.region() != null) {
-      builder.region(Region.of(s3Properties.region()));
-    }
-    if (s3Properties.accessKeyId() != null) {
-      if (s3Properties.sessionToken() != null) {
-        builder.credentialsProvider(
-            StaticCredentialsProvider.create(
-                AwsSessionCredentials.create(
-                    s3Properties.accessKeyId(),
-                    s3Properties.secretAccessKey(),
-                    s3Properties.sessionToken())));
-      } else {
-        builder.credentialsProvider(
-            StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(
-                    s3Properties.accessKeyId(), s3Properties.secretAccessKey())));
-      }
-    }
-    return builder.build();
-  }
-
-  private static Cache<LiteralURI, Pair<FileDownload, File>> initializePreparedFilesCache(
-      CommonStorageOpsProperties commonProperties) {
-    return Caffeine.newBuilder()
-        .expireAfterAccess(Duration.ofMillis(commonProperties.prepareReadCacheExpirationMillis()))
-        .maximumSize(commonProperties.prepareReadCacheSize())
-        .build();
+    initializeS3AsyncClient();
+    initializePreparedFilesCache();
   }
 
   @Override
@@ -152,8 +120,8 @@ public class AmazonS3StorageOps implements StorageOps {
               .getObjectRequest(b -> b.bucket(uri.authority()).key(uri.path()))
               .destination(tempFile)
               .build();
-      FileDownload downloadFile = transferManager.downloadFile(downloadFileRequest);
-      preparedFiles.put(uri, Pair.of(downloadFile, tempFile));
+      FileDownload downloadFile = transferManager().downloadFile(downloadFileRequest);
+      preparedFiles().put(uri, Pair.of(downloadFile, tempFile));
     } catch (RuntimeException e) {
       LOG.warn("Failed to start preparing for file: {}", uri, e);
     }
@@ -161,10 +129,10 @@ public class AmazonS3StorageOps implements StorageOps {
 
   @Override
   public LocalInputStream startReadLocal(LiteralURI uri) {
-    Pair<FileDownload, File> fileDownloadResult = preparedFiles.getIfPresent(uri);
+    Pair<FileDownload, File> fileDownloadResult = preparedFiles().getIfPresent(uri);
     if (fileDownloadResult != null) {
       prepareToReadLocal(uri);
-      fileDownloadResult = preparedFiles.getIfPresent(uri);
+      fileDownloadResult = preparedFiles().getIfPresent(uri);
     }
 
     try {
@@ -177,7 +145,7 @@ public class AmazonS3StorageOps implements StorageOps {
 
   @Override
   public SeekableInputStream startRead(LiteralURI uri) {
-    Pair<FileDownload, File> fileDownloadResult = preparedFiles.getIfPresent(uri);
+    Pair<FileDownload, File> fileDownloadResult = preparedFiles().getIfPresent(uri);
     if (fileDownloadResult != null) {
       try {
         fileDownloadResult.first().completionFuture().get();
@@ -187,13 +155,13 @@ public class AmazonS3StorageOps implements StorageOps {
       }
     }
     LOG.info("Start read without preparation, directly open S3 object: {}", uri);
-    return new S3InputStream(s3, uri);
+    return new S3InputStream(s3(), uri);
   }
 
   @Override
   public boolean exists(LiteralURI uri) {
     try {
-      s3.headObject(HeadObjectRequest.builder().bucket(uri.authority()).key(uri.path()).build())
+      s3().headObject(HeadObjectRequest.builder().bucket(uri.authority()).key(uri.path()).build())
           .get();
       return true;
     } catch (ExecutionException e) {
@@ -205,12 +173,12 @@ public class AmazonS3StorageOps implements StorageOps {
 
   @Override
   public AtomicOutputStream startCommit(LiteralURI uri) {
-    return new S3AtomicOutputStream(s3, uri, commonProperties, s3Properties);
+    return new S3AtomicOutputStream(s3(), uri, commonProperties, s3Properties);
   }
 
   @Override
   public OutputStream startOverwrite(LiteralURI uri) {
-    return new S3OverwriteOutputStream(s3, uri, commonProperties, s3Properties);
+    return new S3OverwriteOutputStream(s3(), uri, commonProperties, s3Properties);
   }
 
   @Override
@@ -274,7 +242,7 @@ public class AmazonS3StorageOps implements StorageOps {
             .build();
     List<String> failures = Lists.newArrayList();
     try {
-      DeleteObjectsResponse response = s3.deleteObjects(request).get();
+      DeleteObjectsResponse response = s3().deleteObjects(request).get();
       if (response.hasErrors()) {
         failures.addAll(
             response.errors().stream()
@@ -297,11 +265,82 @@ public class AmazonS3StorageOps implements StorageOps {
         ListObjectsV2Request.builder().bucket(prefix.authority()).prefix(prefix.path()).build();
 
     List<LiteralURI> result = Lists.newArrayList();
-    s3.listObjectsV2Paginator(request)
+    s3().listObjectsV2Paginator(request)
         .flatMapIterable(ListObjectsV2Response::contents)
         .map(obj -> new LiteralURI(prefix.scheme(), prefix.authority(), obj.key()))
         .subscribe(result::add);
     return result;
+  }
+
+  private S3AsyncClient s3() {
+    if (s3 == null) {
+      synchronized (this) {
+        if (s3 == null) {
+          initializeS3AsyncClient();
+        }
+      }
+    }
+    return s3;
+  }
+
+  private S3TransferManager transferManager() {
+    if (s3 == null) {
+      synchronized (this) {
+        if (s3 == null) {
+          initializeS3AsyncClient();
+        }
+      }
+    }
+    return transferManager;
+  }
+
+  private Cache<LiteralURI, Pair<FileDownload, File>> preparedFiles() {
+    if (preparedFiles == null) {
+      synchronized (this) {
+        if (preparedFiles == null) {
+          initializePreparedFilesCache();
+        }
+      }
+    }
+    return preparedFiles;
+  }
+
+  private void initializeS3AsyncClient() {
+    S3AsyncClientBuilder builder = S3AsyncClient.builder();
+    if (s3Properties.region() != null) {
+      builder.region(Region.of(s3Properties.region()));
+    }
+
+    if (s3Properties.endpoint() != null) {
+      builder.endpointOverride(URI.create(s3Properties.endpoint()));
+    }
+
+    if (s3Properties.accessKeyId() != null) {
+      if (s3Properties.sessionToken() != null) {
+        builder.credentialsProvider(
+            StaticCredentialsProvider.create(
+                AwsSessionCredentials.create(
+                    s3Properties.accessKeyId(),
+                    s3Properties.secretAccessKey(),
+                    s3Properties.sessionToken())));
+      } else {
+        builder.credentialsProvider(
+            StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(
+                    s3Properties.accessKeyId(), s3Properties.secretAccessKey())));
+      }
+    }
+    this.s3 = builder.build();
+    this.transferManager = S3TransferManager.builder().s3Client(s3).build();
+  }
+
+  private void initializePreparedFilesCache() {
+    this.preparedFiles =
+        Caffeine.newBuilder()
+            .expireAfterAccess(
+                Duration.ofMillis(commonProperties.prepareReadCacheExpirationMillis()))
+            .maximumSize(commonProperties.prepareReadCacheSize())
+            .build();
   }
 
   private ExecutorService executorService() {
@@ -326,10 +365,11 @@ public class AmazonS3StorageOps implements StorageOps {
 
   @Override
   public void close() {
-    // handles concurrent calls to close()
-    if (isResourceClosed.compareAndSet(false, true)) {
-      if (s3 != null) {
+    if (s3 != null) {
+      try {
         s3.close();
+      } catch (Exception e) {
+        LOG.warn("Failed to close s3 client", e);
       }
     }
   }

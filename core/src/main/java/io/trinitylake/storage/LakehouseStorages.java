@@ -16,6 +16,7 @@ package io.trinitylake.storage;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
 import io.trinitylake.util.InitializationUtil;
 import io.trinitylake.util.PropertyUtil;
+import io.trinitylake.util.ValidationUtil;
 import java.util.Map;
 
 public class LakehouseStorages {
@@ -33,20 +34,33 @@ public class LakehouseStorages {
           .put(STORAGE_TYPE_S3, "io.trinitylake.storage.s3.AmazonS3StorageOps")
           .build();
 
+  private static final Map<String, String> STORAGE_SCHEME_TO_TYPE =
+      ImmutableMap.<String, String>builder()
+          .put("local", STORAGE_TYPE_LOCAL)
+          .put("s3", STORAGE_TYPE_S3)
+          .build();
+
   private LakehouseStorages() {}
 
   public static LakehouseStorage initialize(Map<String, String> properties) {
-    LiteralURI storageRoot = new LiteralURI(properties.get(STORAGE_ROOT));
-    StorageOps storageOps = initializeStorageOps(properties);
-    return new BasicLakehouseStorage(storageRoot, storageOps);
-  }
+    LiteralURI storageRoot =
+        new LiteralURI(PropertyUtil.propertyAsString(properties, STORAGE_ROOT));
+    String storageType = PropertyUtil.propertyAsNullableString(properties, STORAGE_TYPE);
 
-  public static StorageOps initializeStorageOps(Map<String, String> properties) {
-    String storageType =
-        PropertyUtil.propertyAsString(properties, STORAGE_TYPE, STORAGE_TYPE_DEFAULT);
+    if (storageType == null) {
+      ValidationUtil.checkArgument(
+          STORAGE_SCHEME_TO_TYPE.containsKey(storageRoot.scheme()),
+          "Cannot infer storage type from root: %s",
+          storageRoot);
+
+      storageType = STORAGE_SCHEME_TO_TYPE.get(storageRoot.scheme());
+    }
 
     // if not found in default mapping, just treat type as the impl
     String storageImpl = STORAGE_TYPE_TO_IMPL.getOrDefault(storageType, storageType);
-    return InitializationUtil.loadInitializable(storageImpl, properties, StorageOps.class);
+
+    StorageOps storageOps =
+        InitializationUtil.loadInitializable(storageImpl, properties, StorageOps.class);
+    return new BasicLakehouseStorage(storageRoot, storageOps);
   }
 }

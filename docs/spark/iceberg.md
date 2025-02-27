@@ -44,9 +44,14 @@ spark-shell \
   --conf spark.sql.catalog.demo.uri=http://localhost:8000
 ```
 
+## Operation Behavior
+
+The TrinityLake Spark Iceberg connector offers the same operation behavior as the Iceberg catalog integration.
+See [Operation Behavior in Iceberg Catalog](./iceberg.md#operation-behavior) for more details.
+
 ## Using System Namespace
 
-The TrinityLake Spark Iceberg connector offers the same system namespace support
+The TrinityLake Spark Iceberg connector offers the same system namespace support as the Iceberg catalog integration
 to perform operations like create lakehouse and list distributed transactions.
 See [Using System Namespace in Iceberg Catalog](./iceberg.md#using-system-namespace) for more details.
 
@@ -73,7 +78,8 @@ SHOW DATABASES IN sys.dtxns
 
 ## Using Distributed Transaction
 
-The Spark Iceberg connector for TrinityLake offers the same distributed transaction support using multi-level namespace.
+The Spark Iceberg connector for TrinityLake offers the same distributed transaction support
+as the Iceberg catalog integration using multi-level namespace.
 See [Using Distributed Transaction in Iceberg Catalog](./iceberg.md#using-distributed-transaction) for more details.
 
 For examples:
@@ -84,22 +90,22 @@ CREATE DATABASE system.dtxns.dtxn_1234
        WITH DBPROPERTIES ('isolation-level'='serializable')
        
 -- list tables in transaction of ID 1234 under namespace ns1
-SHOW TABLES IN sys.dtxns.txn_1234.ns1;
+SHOW TABLES IN sys.dtxns.dtxn_1234.ns1;
 ------
 |name|
 ------     
 |t1  |
 
-SELECT * FROM sys.dtxns.txn_1234.ns1.t1;
+SELECT * FROM sys.dtxns.dtxn_1234.ns1.t1;
 -----------
 |id |data |
 -----------
 |1  |abc  |
 |2  |def  |
 
-INSERT INTO sys.dtxns.txn_1234.ns1.t1 VALUES (3, 'ghi');
+INSERT INTO sys.dtxns.dtxn_1234.ns1.t1 VALUES (3, 'ghi');
 
 -- commit transaction with ID 1234
-ALTER DATABASE sys.dtxns.txn_1234
+ALTER DATABASE sys.dtxns.dtxn_1234
       SET DBPROPERTIES ('commit' = 'true');
 ```

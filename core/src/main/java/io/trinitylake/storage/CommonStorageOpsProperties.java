@@ -59,9 +59,10 @@ public class CommonStorageOpsProperties implements StorageOpsProperties {
   private final int prepareReadCacheSize;
   private final long prepareReadCacheExpirationMillis;
   private final String prepareReadStagingDirectoryPath;
-  private volatile File prepareReadStagingDirectory;
   private final String writeStagingDirectoryPath;
-  private volatile File writeStagingDirectory;
+
+  private transient volatile File prepareReadStagingDirectory;
+  private transient volatile File writeStagingDirectory;
 
   public CommonStorageOpsProperties() {
     this(ImmutableMap.of());

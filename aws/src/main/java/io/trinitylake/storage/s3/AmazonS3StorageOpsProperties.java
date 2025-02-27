@@ -23,6 +23,7 @@ import java.util.Set;
 public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
 
   public static final String S3_REGION = "s3.region";
+  public static final String S3_ENDPOINT = "s3.endpoint";
   public static final String S3_ACCESS_KEY_ID = "s3.access-key-id";
   public static final String S3_SECRET_ACCESS_KEY = "s3.secret-access-key";
   public static final String S3_SESSION_TOKEN = "s3.session-token";
@@ -30,6 +31,7 @@ public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
   public static final Set<String> PROPERTIES =
       ImmutableSet.<String>builder()
           .add(S3_REGION)
+          .add(S3_ENDPOINT)
           .add(S3_ACCESS_KEY_ID)
           .add(S3_SECRET_ACCESS_KEY)
           .add(S3_SESSION_TOKEN)
@@ -40,6 +42,7 @@ public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
   private static final AmazonS3StorageOpsProperties INSTANCE = new AmazonS3StorageOpsProperties();
 
   private final String region;
+  private final String endpoint;
   private final String accessKeyId;
   private final String secretAccessKey;
   private final String sessionToken;
@@ -50,10 +53,11 @@ public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
 
   public AmazonS3StorageOpsProperties(Map<String, String> input) {
     this.propertiesMap = PropertyUtil.filterProperties(input, PROPERTIES::contains);
-    this.region = input.get(S3_REGION);
-    this.accessKeyId = input.get(S3_ACCESS_KEY_ID);
-    this.secretAccessKey = input.get(S3_SECRET_ACCESS_KEY);
-    this.sessionToken = input.get(S3_SESSION_TOKEN);
+    this.region = PropertyUtil.propertyAsNullableString(input, S3_REGION);
+    this.endpoint = PropertyUtil.propertyAsNullableString(input, S3_ENDPOINT);
+    this.accessKeyId = PropertyUtil.propertyAsNullableString(input, S3_ACCESS_KEY_ID);
+    this.secretAccessKey = PropertyUtil.propertyAsNullableString(input, S3_SECRET_ACCESS_KEY);
+    this.sessionToken = PropertyUtil.propertyAsNullableString(input, S3_SESSION_TOKEN);
   }
 
   public static AmazonS3StorageOpsProperties instance() {
@@ -67,6 +71,10 @@ public class AmazonS3StorageOpsProperties implements StorageOpsProperties {
 
   public String region() {
     return region;
+  }
+
+  public String endpoint() {
+    return endpoint;
   }
 
   public String accessKeyId() {

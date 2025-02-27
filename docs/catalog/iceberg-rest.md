@@ -3,15 +3,21 @@
 TrinityLake provides the ability to build an Iceberg REST Catalog (IRC) server 
 following the [IRC open catalog standard](https://editor-next.swagger.io/?url=https://raw.githubusercontent.com/apache/iceberg/main/open-api/rest-catalog-open-api.yaml).
 
+## Operation Behavior
+
+The TrinityLake-backed IRC offers the same operation behavior as the Iceberg catalog integration.
+See [Operation Behavior in Iceberg Catalog](./iceberg.md#operation-behavior) for more details.
+
 ## Using System Namespace
 
-The TrinityLake-backed IRC offers the same system namespace support 
+The TrinityLake-backed IRC offers the same system namespace support as the Iceberg catalog integration
 to perform operations like create lakehouse and list distributed transactions.
 See [Using System Namespace in Iceberg Catalog](./iceberg.md#using-system-namespace) for more details.
 
 ## Using Distributed Transaction
 
-The TrinityLake-backed IRC offers the same distributed transaction support using multi-level namespace.
+The TrinityLake-backed IRC offers the same distributed transaction support
+as the Iceberg catalog integration using multi-level namespace.
 See [Using Distributed Transaction in Iceberg Catalog](./iceberg.md#using-distributed-transaction) for more details.
 
 ## Apache Gravitino IRC Server

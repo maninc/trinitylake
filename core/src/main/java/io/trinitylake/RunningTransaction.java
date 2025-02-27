@@ -15,10 +15,11 @@ package io.trinitylake;
 
 import io.trinitylake.models.IsolationLevel;
 import io.trinitylake.tree.TreeRoot;
+import java.io.Serializable;
 import org.immutables.value.Value;
 
 @Value.Immutable
-public interface RunningTransaction {
+public interface RunningTransaction extends Serializable {
 
   String transactionId();
 

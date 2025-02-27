@@ -14,5 +14,6 @@
 package io.trinitylake.storage;
 
 import io.trinitylake.StringMapBased;
+import java.io.Serializable;
 
-public interface StorageOpsProperties extends StringMapBased {}
+public interface StorageOpsProperties extends StringMapBased, Serializable {}

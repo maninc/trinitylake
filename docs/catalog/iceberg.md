@@ -39,6 +39,36 @@ catalog.initialize(
 SupportsNamespaces nsCatalog = (SupportsNamespace) catalog;
 ```
 
+## Operation Behavior
+
+When using TrinityLake through Iceberg catalog, all the operations will first begin a transaction and then perform the operation.
+If the operation modifies the object, it will commit the transaction to the lakehouse.
+
+When using Iceberg transactions to perform multiple operations,
+TrinityLake will begin a transaction, perform all the operations and then commit the transaction to the lakehouse.
+For example:
+
+```java
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.types.Types;
+        
+Table table = catalog.loadTable(TableIdentifier.of("ns1", "t1"));
+Transaction txn = table.newTransaction();
+
+txn.updateSchema()
+    .addColumn("region", Types.StringType.get())
+    .commit();
+
+txn.updateSpec()
+    .addField("region")
+    .commit();
+
+txn.commitTransaction();
+```
+
+In this sequence, a TrinityLake transaction will hold the schema and partition spec update, 
+and commit both changes to lakehouse in a single transaction. 
+
 ## Using System Namespace
 
 The system namespace is a special namespace with name determined by `system.ns-name` that exists 
@@ -56,11 +86,8 @@ For example:
 ```java
 import org.apache.iceberg.Namespace;
 
-Namesapce systemNamespace = Namespace.of("system");
-
-// create a lakehouse
 nsCatalog.createNamespace(
-        systemNamespace, 
+        Namespace.of("sys"), 
         ImmutableMap.of("namespace_name_max_size_bytes", "256"));
 ```
 
@@ -79,10 +106,19 @@ For example, if there are 2 distributed transactions with IDs `123` and `456`,
 you should see the following namespace hierarchy:
 
 ```
-└── system
+└── sys
     └── dtxns
         ├── dtxn_123
         └── dtxn_456
+```
+
+### List all transactions
+
+Users can list all the distributed transactions currently in the lakehouse
+by doing a namespace listing of the parent namespace of all distributed transactions:
+
+```java
+nsCatalog.listNamespace(Namespace.of("sys", "dtxns"));
 ```
 
 ### Begin a transaction
@@ -99,10 +135,9 @@ The namespace properties are used to provide runtime override options for the tr
 | ttl-millis      | The duration for which a transaction is valid in milliseconds |
 
 The act of creating such a namespace means to create a distributed transaction that is persisted in the lakehouse.
-For example, consider a user creating a transaction with ID `123`:
+For example, consider a user creating a transaction with ID `123` with isolation level as `SERIALIZABLE`:
 
 ```java
-// begin a transaction with SERIALIZABLE level isolation
 nsCatalog.createNamespace(
         Namespace.of("system", "dtxns", "dtxn_123"), 
         ImmutableMap.of("isolation-level", "serializable"));
@@ -116,11 +151,9 @@ then the user should see a namespace `system.dtxns.dtxn_123.ns1`
 and a table `system.dtxns.dtxn_123.ns1.t1` which the user can read and write to:
 
 ```java
-// list namespaces in this transaction
 assertThat(catalog.listNamespaces(Namespace.of("system", "dtxns", "dtxn_123")))
         .containsExactly(Namespace.of("system", "dtxns", "dtxn_123", "ns1"));
 
-// list tables in this transaction under namespace ns1
 assertThat(catalog.listTables(Namespace.of("system", "dtxns", "dtxn_123", "ns1")))
         .containsExactly(TableIdentifier.of("system", "dtxns", "dtxn_123", "ns1", "t1"));
 ```
@@ -140,5 +173,6 @@ nsCatalog.setProperties(
 In order to rollback a transaction, perform a drop namespace:
 
 ```java
-nsCatalog.dropNamespace(Namespace.of("system", "dtxns", "dtxn_123"));
+nsCatalog.dropNamespace(
+        Namespace.of("system", "dtxns", "dtxn_123"));
 ```
