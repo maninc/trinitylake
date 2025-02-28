@@ -25,7 +25,6 @@ import io.trinitylake.util.ValidationUtil;
 import java.io.Serializable;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -44,6 +43,7 @@ import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.exceptions.NoSuchNamespaceException;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.LocationProvider;
@@ -63,11 +63,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
 
   private LakehouseStorage storage;
   private RunningTransaction transaction;
-  private String tableName;
-  private String namespaceName;
+  private IcebergTableIdentifierParseResult parseResult;
   private String namesapceTableName;
-  // use nullable instead of optional to make it serializable
-  private String nullableDistTransactionId;
 
   private FileIO fileIO;
 
@@ -79,17 +76,14 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
 
   public TrinityLakeIcebergTableOperations(
       LakehouseStorage storage,
+      Map<String, String> allProperties,
       RunningTransaction transaction,
-      String namespaceName,
-      String tableName,
-      Optional<String> nullableDistTransactionId,
-      Map<String, String> allProperties) {
+      IcebergTableIdentifierParseResult parseResult) {
     this.storage = storage;
     this.transaction = transaction;
-    this.namespaceName = namespaceName;
-    this.tableName = tableName;
-    this.namesapceTableName = String.format("%s.%s", namespaceName, tableName);
-    this.nullableDistTransactionId = nullableDistTransactionId.orElse(null);
+    this.parseResult = parseResult;
+    this.namesapceTableName =
+        String.format("%s.%s", parseResult.namespaceName(), parseResult.tableName());
     this.fileIO = initializeFileIO(allProperties);
   }
 
@@ -111,7 +105,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     boolean currentMetadataWasAvailable = currentMetadata != null;
     try {
       this.currentTableDef =
-          TrinityLake.describeTable(storage, transaction, namespaceName, tableName);
+          TrinityLake.describeTable(
+              storage, transaction, parseResult.namespaceName(), parseResult.tableName());
       loadMetadata(TrinityLakeToIceberg.tableMetadataLocation(currentTableDef));
     } catch (ObjectNotFoundException e) {
       currentMetadata = null;
@@ -169,14 +164,28 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     if (currentMetadata != null) {
       transaction =
           TrinityLake.alterTable(
-              storage, transaction, namespaceName, tableName, newTableDef.build());
+              storage,
+              transaction,
+              parseResult.namespaceName(),
+              parseResult.tableName(),
+              newTableDef.build());
     } else {
-      transaction =
-          TrinityLake.createTable(
-              storage, transaction, namespaceName, tableName, newTableDef.build());
+      try {
+        transaction =
+            TrinityLake.createTable(
+                storage,
+                transaction,
+                parseResult.namespaceName(),
+                parseResult.tableName(),
+                newTableDef.build());
+      } catch (ObjectNotFoundException e) {
+        throw new NoSuchNamespaceException(
+            "Namespace does not exist: %s.%s",
+            parseResult.namespaceName(), parseResult.tableName());
+      }
     }
 
-    if (nullableDistTransactionId != null) {
+    if (parseResult.distTransactionId().isPresent()) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       try {

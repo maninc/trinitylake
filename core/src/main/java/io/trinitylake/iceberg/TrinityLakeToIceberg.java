@@ -18,6 +18,8 @@ import io.trinitylake.util.ValidationUtil;
 
 public class TrinityLakeToIceberg {
 
+  public static final String FORMAT_ICEBERG = "ICEBERG_V2";
+
   public static final String METADATA_LOCATION_FORMAT_PROPERTY = "metadata_location";
 
   public static final String PREVIOUS_METADATA_LOCATION_FORMAT_PROPERTY =
@@ -30,5 +32,11 @@ public class TrinityLakeToIceberg {
         tableDef.containsFormatProperties(METADATA_LOCATION_FORMAT_PROPERTY),
         "Metadata location is required in Iceberg format properties");
     return tableDef.getFormatPropertiesOrThrow(METADATA_LOCATION_FORMAT_PROPERTY);
+  }
+
+  public static String fullTableName(
+      String catalogName, IcebergTableIdentifierParseResult parseResult) {
+    return String.format(
+        "%s.%s.%s", catalogName, parseResult.namespaceName(), parseResult.tableName());
   }
 }

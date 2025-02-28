@@ -19,13 +19,13 @@ import org.apache.iceberg.MetadataTableType;
 import org.immutables.value.Value;
 
 @Value.Immutable
-public interface IcebergNamespaceParseResult extends Serializable {
-
-  boolean isSystem();
+public interface IcebergTableIdentifierParseResult extends Serializable {
 
   Optional<String> distTransactionId();
 
   String namespaceName();
+
+  String tableName();
 
   Optional<MetadataTableType> metadataTableType();
 }

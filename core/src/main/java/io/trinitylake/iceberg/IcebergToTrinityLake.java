@@ -15,6 +15,7 @@ package io.trinitylake.iceberg;
 
 import io.trinitylake.exception.InvalidArgumentException;
 import io.trinitylake.util.ValidationUtil;
+import org.apache.iceberg.MetadataTableType;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 
@@ -62,16 +63,75 @@ public class IcebergToTrinityLake {
         "Unknown parent namespace name in system namespace: %s", parentNamespaceName);
   }
 
-  public static String tableName(TableIdentifier tableIdentifier) {
-    // TODO: add name validations
-    return tableIdentifier.name();
-  }
+  public static IcebergTableIdentifierParseResult parseTableIdentifier(
+      TableIdentifier tableIdentifier, TrinityLakeIcebergCatalogProperties catalogProperties) {
+    Namespace namespace = tableIdentifier.namespace();
 
-  public static String fullTableName(
-      String catalogName,
-      IcebergNamespaceParseResult parseResult,
-      TableIdentifier tableIdentifier) {
-    return String.format(
-        "%s.%s.%s", catalogName, parseResult.namespaceName(), tableIdentifier.name());
+    ValidationUtil.checkArgument(
+        !namespace.isEmpty(), "Empty namespace is not allowed in TrinityLake");
+
+    if (!catalogProperties.systemNamespaceName().equals(namespace.level(0))) {
+      ValidationUtil.checkArgument(
+          namespace.length() <= 2, "Namespace name must only have 1 level");
+
+      if (namespace.length() == 1) {
+        return ImmutableIcebergTableIdentifierParseResult.builder()
+            .namespaceName(namespace.level(0))
+            .tableName(tableIdentifier.name())
+            .build();
+      }
+
+      MetadataTableType metadataTableType = MetadataTableType.from(tableIdentifier.name());
+      ValidationUtil.checkArgument(
+          metadataTableType != null,
+          "Unknown metadata table type %s in table identifier: %s",
+          tableIdentifier.name(),
+          tableIdentifier);
+      return ImmutableIcebergTableIdentifierParseResult.builder()
+          .namespaceName(namespace.level(0))
+          .tableName(namespace.level(1))
+          .metadataTableType(metadataTableType)
+          .build();
+    }
+
+    ValidationUtil.checkArgument(
+        namespace.length() == 3 || namespace.length() == 4,
+        "TrinityLake system namespace does not directly contain any table");
+
+    String subSystemNamespace = namespace.level(1);
+    ValidationUtil.checkArgument(
+        catalogProperties.dtxnParentNamespaceName().equals(subSystemNamespace),
+        "TrinityLake system namespace does not contain any table in sub-namespace: %s",
+        subSystemNamespace);
+
+    String distTransactionNamespace = namespace.level(2);
+    ValidationUtil.checkArgument(
+        distTransactionNamespace.startsWith(catalogProperties.dtxnNamespacePrefix()),
+        "Distributed transaction namespace name must start with %s",
+        catalogProperties.dtxnNamespacePrefix());
+
+    String distTransactionId =
+        distTransactionNamespace.substring(catalogProperties.dtxnNamespacePrefix().length());
+
+    if (namespace.length() == 3) {
+      return ImmutableIcebergTableIdentifierParseResult.builder()
+          .distTransactionId(distTransactionId)
+          .namespaceName(namespace.level(2))
+          .tableName(tableIdentifier.name())
+          .build();
+    }
+
+    MetadataTableType metadataTableType = MetadataTableType.from(tableIdentifier.name());
+    ValidationUtil.checkArgument(
+        metadataTableType != null,
+        "Unknown metadata table type %s in table identifier: %s",
+        tableIdentifier.name(),
+        tableIdentifier);
+    return ImmutableIcebergTableIdentifierParseResult.builder()
+        .distTransactionId(distTransactionId)
+        .namespaceName(namespace.level(2))
+        .tableName(namespace.level(3))
+        .metadataTableType(metadataTableType)
+        .build();
   }
 }
