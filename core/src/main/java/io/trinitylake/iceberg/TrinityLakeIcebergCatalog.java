@@ -173,6 +173,10 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       throws NoSuchNamespaceException {
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    if (parseResult.isSystem()) {
+      return ImmutableMap.of();
+    }
+
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
     try {
       NamespaceDef namespaceDef =
@@ -531,7 +535,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   private RunningTransaction beginOrLoadTransaction(IcebergNamespaceParseResult parseResult) {
     ValidationUtil.checkArgument(
-        !parseResult.isSystem(), "Cannot remove properties for the system namespace");
+        !parseResult.isSystem(), "Cannot start transaction against system namespace");
     return parseResult.distTransactionId().isPresent()
         ? TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get())
         : TrinityLake.beginTransaction(storage);

@@ -27,7 +27,7 @@ dependencies {
     implementation "org.apache.arrow:arrow-vector:18.1.0"
     implementation "org.apache.iceberg:iceberg-api:1.8.0"
     implementation "org.apache.iceberg:iceberg-core:1.8.0"
-    testImplementation 'org.apache.arrow:arrow-memory-netty:18.1.0'
+    implementation "org.apache.arrow:arrow-memory-netty:18.1.0"
     testImplementation "org.apache.iceberg:iceberg-core:1.8.0:tests"
     testImplementation "org.apache.hadoop:hadoop-client:3.4.1"
 }
