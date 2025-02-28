@@ -28,21 +28,55 @@ The easiest way to start a TrinityLake-backed IRC server is to use the Apache Gr
 
 Follow the [Apache Gravitino instructions](https://gravitino.apache.org/docs/0.8.0-incubating/how-to-install) 
 for downloading and installing the Gravitino software.
-After the standard installation process, add the TrinityLake SDK to your Java classpath. 
+After the standard installation process, add the `trinitylake-spark-runtime-3.5_2.12-0.0.1.jar` to your Java classpath or
+copy the trinitylake spark runtime jar into Gravitino’s `lib/` directory . 
 
 ### Configuration
 
-Use the following configuration to start the Gravitino IRC server:
+Update `gravitino-iceberg-rest-server.conf` with the following configuration:
 
-| Configuration Item                          | Description                                                                                                 | Value                                            |
-|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
-| gravitino.iceberg-rest.catalog-backend-impl | The Catalog backend implementation of the Gravitino Iceberg REST catalog service.                           | io.trinitylake.iceberg.TrinityLakeIcebergCatalog |
-| gravitino.iceberg-rest.catalog-backend-name | The catalog backend name passed to underlying Iceberg catalog backend.                                      | any name you like, e.g. `trinitylake`            |
-| gravitino.iceberg-rest.<key\>               | Any other catalog properties, see [TrinityLake Iceberg catalog properties](./iceberg.md#catalog-properties) |                                                  |
+| Configuration Item                          | Description                                                                                                 | Value                                                  |
+|---------------------------------------------|-------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
+| gravitino.iceberg-rest.catalog-backend      | The Catalog backend of the Gravitino Iceberg REST catalog service                                           | custom                                                 |
+| gravitino.iceberg-rest.catalog-backend-impl | The Catalog backend implementation of the Gravitino Iceberg REST catalog service.                           | io.trinitylake.iceberg.TrinityLakeIcebergCatalog       |
+| gravitino.iceberg-rest.catalog-backend-name | The catalog backend name passed to underlying Iceberg catalog backend.                                      | any name you like, e.g. `trinitylake`                  |
+| gravitino.iceberg-rest.uri                  | Iceberg REST catalog server address                                                                         | For local development, use ```http://127.0.0.1:9001``` |
+| gravitino.iceberg-rest.warehouse            | Trinity lakehouse storage root URI                                                                          | Any file path. Ex: `/tmp/trinitylake`                  |
+| gravitino.iceberg-rest.<key\>               | Any other catalog properties, see [TrinityLake Iceberg catalog properties](./iceberg.md#catalog-properties) |                                                        |
 
 ### Running the server
 
+To start the Gravitino Iceberg REST server
+```
+./bin/gravitino-iceberg-rest-server.sh start
+```
+
+To stop the Gravitino Iceberg REST server
+```
+./bin/gravitino-iceberg-rest-server.sh stop
+```
+
 Follow the [Apache Gravitino instructions](https://gravitino.apache.org/docs/0.8.0-incubating/iceberg-rest-service#starting-the-iceberg-rest-server)
-for starting the IRC server and exploring the namespaces, tables and distributed transactions in the catalog.
+for more detailed instructions on starting the IRC server and exploring the namespaces, tables and distributed transactions in the catalog.
 
+### Examples
 
+List catalog configuration settings
+```
+curl -X GET "http://127.0.0.1:9001/iceberg/v1/config"
+```
+
+Create lakehouse
+```
+curl -X POST "http://127.0.0.1:9001/iceberg/v1/namespaces" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "namespace": ["sys"],
+           "properties": {}
+         }'
+```
+
+List namespaces
+```
+curl -X GET "http://127.0.0.1:9001/iceberg/v1/namespaces"
+```
