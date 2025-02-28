@@ -13,6 +13,9 @@
  */
 package io.trinitylake.iceberg;
 
+import io.trinitylake.RunningTransaction;
+import io.trinitylake.TrinityLake;
+import io.trinitylake.storage.LakehouseStorage;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.ExpireSnapshots;
@@ -34,96 +37,110 @@ import org.apache.iceberg.UpdateStatistics;
 
 public class TrinityLakeIcebergTransaction implements Transaction {
 
-  @Override
-  public void commitTransaction() {}
+  private final LakehouseStorage storage;
+  private final Table table;
+  private final String distTransactionId;
 
-  @Override
-  public ExpireSnapshots expireSnapshots() {
-    return null;
-  }
-
-  @Override
-  public ManageSnapshots manageSnapshots() {
-    return Transaction.super.manageSnapshots();
-  }
-
-  @Override
-  public AppendFiles newAppend() {
-    return null;
-  }
-
-  @Override
-  public DeleteFiles newDelete() {
-    return null;
-  }
-
-  @Override
-  public AppendFiles newFastAppend() {
-    return Transaction.super.newFastAppend();
-  }
-
-  @Override
-  public OverwriteFiles newOverwrite() {
-    return null;
-  }
-
-  @Override
-  public ReplacePartitions newReplacePartitions() {
-    return null;
-  }
-
-  @Override
-  public RewriteFiles newRewrite() {
-    return null;
-  }
-
-  @Override
-  public RowDelta newRowDelta() {
-    return null;
-  }
-
-  @Override
-  public ReplaceSortOrder replaceSortOrder() {
-    return null;
-  }
-
-  @Override
-  public RewriteManifests rewriteManifests() {
-    return null;
+  public TrinityLakeIcebergTransaction(
+      LakehouseStorage storage, Table table, String distTransactionId) {
+    this.storage = storage;
+    this.table = table;
+    this.distTransactionId = distTransactionId;
   }
 
   @Override
   public Table table() {
-    return null;
-  }
-
-  @Override
-  public UpdateLocation updateLocation() {
-    return null;
-  }
-
-  @Override
-  public UpdatePartitionStatistics updatePartitionStatistics() {
-    return Transaction.super.updatePartitionStatistics();
-  }
-
-  @Override
-  public UpdateProperties updateProperties() {
-    return null;
+    return table;
   }
 
   @Override
   public UpdateSchema updateSchema() {
-    return null;
+    return table.updateSchema();
   }
 
   @Override
   public UpdatePartitionSpec updateSpec() {
-    return null;
+    return table.updateSpec();
+  }
+
+  @Override
+  public UpdateProperties updateProperties() {
+    return table.updateProperties();
+  }
+
+  @Override
+  public ReplaceSortOrder replaceSortOrder() {
+    return table.replaceSortOrder();
+  }
+
+  @Override
+  public UpdateLocation updateLocation() {
+    return table.updateLocation();
+  }
+
+  @Override
+  public AppendFiles newAppend() {
+    return table.newAppend();
+  }
+
+  @Override
+  public AppendFiles newFastAppend() {
+    return table.newFastAppend();
+  }
+
+  @Override
+  public RewriteFiles newRewrite() {
+    return table.newRewrite();
+  }
+
+  @Override
+  public RewriteManifests rewriteManifests() {
+    return table.rewriteManifests();
+  }
+
+  @Override
+  public OverwriteFiles newOverwrite() {
+    return table.newOverwrite();
+  }
+
+  @Override
+  public RowDelta newRowDelta() {
+    return table.newRowDelta();
+  }
+
+  @Override
+  public ReplacePartitions newReplacePartitions() {
+    return table.newReplacePartitions();
+  }
+
+  @Override
+  public DeleteFiles newDelete() {
+    return table.newDelete();
   }
 
   @Override
   public UpdateStatistics updateStatistics() {
-    return Transaction.super.updateStatistics();
+    return table.updateStatistics();
+  }
+
+  @Override
+  public UpdatePartitionStatistics updatePartitionStatistics() {
+    return table.updatePartitionStatistics();
+  }
+
+  @Override
+  public ExpireSnapshots expireSnapshots() {
+    return table.expireSnapshots();
+  }
+
+  @Override
+  public ManageSnapshots manageSnapshots() {
+    return table.manageSnapshots();
+  }
+
+  @Override
+  public void commitTransaction() {
+    RunningTransaction transaction = TrinityLake.loadDistTransaction(storage, distTransactionId);
+    TrinityLake.commitTransaction(storage, transaction);
   }
 }

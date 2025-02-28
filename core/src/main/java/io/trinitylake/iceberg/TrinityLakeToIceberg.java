@@ -18,7 +18,7 @@ import io.trinitylake.util.ValidationUtil;
 
 public class TrinityLakeToIceberg {
 
-  public static final String FORMAT_ICEBERG = "ICEBERG_V2";
+  public static final String FORMAT_ICEBERG = "ICEBERG";
 
   public static final String METADATA_LOCATION_FORMAT_PROPERTY = "metadata_location";
 

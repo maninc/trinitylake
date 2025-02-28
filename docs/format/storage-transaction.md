@@ -32,9 +32,14 @@ This feature is widely available in most storage systems, for examples:
 - On Linux File System through [O_EXCL](https://linux.die.net/man/2/open)
 - On Hadoop Distributed File System through [atomic rename](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/filesystem/filesystem.html#boolean_rename.28Path_src.2C_Path_d.29)
 - On Amazon S3 through [IF-NONE-MATCH](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html#API_PutObject_RequestSyntax)
-- On Amazon DynamoDB through [conditional PutItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html)
 - On Google Cloud Storage through [IF-NONE-MATCH](https://cloud.google.com/storage/docs/xml-api/reference-headers#ifnonematch)
 - On Azure Data Lake Storage through [IF-NONE-MATCH](https://learn.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
+
+
+We can also treat key-value stores as a file system, where the key records the file path and value stores the file content bytes.
+This further enables the usage of systems like:
+
+- On Amazon DynamoDB through [conditional PutItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html)
 - On Redis/Valkey through [SET NX](https://valkey.io/commands/set/)
 
 ### Consistency
@@ -42,7 +47,8 @@ This feature is widely available in most storage systems, for examples:
 The **C**onsistency aspect of ACID is enforced by the storage, and TrinityLake format requires a **Strongly Consistent** storage.
 This means all operations that modify the storage (e.g. write, delete) are committed reflected immediately in any 
 subsequent read operations (e.g. read, list).   
-For example, the TrinityLake format would not work as expected if you use it on eventually consistent systems like Apache Cassandra.
+For example, the TrinityLake format would not work as expected if you use it on eventually consistent systems like 
+Apache Cassandra without enough replication factor for read and write.
 
 ### Durability
 

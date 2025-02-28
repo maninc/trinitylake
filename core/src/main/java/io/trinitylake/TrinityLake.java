@@ -116,7 +116,8 @@ public class TrinityLake {
   }
 
   public static RunningTransaction loadDistTransaction(
-      LakehouseStorage storage, String distTransactionDefFilePath) {
+      LakehouseStorage storage, String distTransactionId) {
+    String distTransactionDefFilePath = FileLocations.distTransactionDefFilePath(distTransactionId);
     TransactionDef transactionDef =
         ObjectDefinitions.readTransactionDef(storage, distTransactionDefFilePath);
     TreeRoot beginningRoot =
