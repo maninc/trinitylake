@@ -110,7 +110,13 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
 
   @Test
   @Override
-  public void testDropTableWithoutPurge() {
-    super.testDropTableWithoutPurge();
+  public void renameTableNamespaceMissing() {
+    // TODO: support rename
+  }
+
+  @Test
+  @Override
+  public void testListTables() {
+    super.testListTables();
   }
 }

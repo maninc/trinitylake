@@ -137,6 +137,18 @@ public class ObjectKeys {
                 + lakehouseDef.getTableNameMaxSizeBytes());
   }
 
+  public static String tableKeyNamespacePrefix(String namespaceName, LakehouseDef lakehouseDef) {
+    StringBuilder sb =
+        new StringBuilder(
+            TABLE_SCHEMA_ID_PART.length() + lakehouseDef.getNamespaceNameMaxSizeBytes());
+    sb.append(TABLE_SCHEMA_ID_PART);
+    sb.append(namespaceName);
+    for (int i = 0; i < lakehouseDef.getNamespaceNameMaxSizeBytes() - namespaceName.length(); i++) {
+      sb.append(' ');
+    }
+    return sb.toString();
+  }
+
   public static String viewKey(String namespaceName, String viewName, LakehouseDef lakehouseDef) {
     ValidationUtil.checkNotNull(lakehouseDef, "Lakehouse definition must be provided");
     ValidationUtil.checkNotNullOrEmptyString(namespaceName, "namespace name must be provided");

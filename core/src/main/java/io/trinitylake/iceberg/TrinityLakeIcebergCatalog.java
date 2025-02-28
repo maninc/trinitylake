@@ -19,7 +19,6 @@ import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
-import io.trinitylake.exception.TrinityLakeRuntimeException;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableList;
@@ -309,6 +308,11 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   public List<TableIdentifier> listTables(Namespace namespace) {
     IcebergNamespaceParseResult parseResult =
         IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+
+    if (parseResult.isSystem()) {
+      return ImmutableList.of();
+    }
+
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
     List<String> tableNames =
         TrinityLake.showTables(storage, transaction, parseResult.namespaceName());
@@ -373,11 +377,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
     }
 
-    if (!parseResult.distTransactionId().isPresent()) {
-      TrinityLake.saveDistTransaction(storage, transaction);
-    } else {
-      TrinityLake.commitTransaction(storage, transaction);
-    }
+    commitOrSaveTransaction(parseResult, transaction);
 
     String fullTableName =
         IcebergToTrinityLake.fullTableName(catalogName, parseResult, tableIdentifier);
@@ -447,16 +447,17 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
         IcebergToTrinityLake.parseNamespace(tableIdentifier.namespace(), catalogProperties);
 
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    transaction =
-        TrinityLake.dropTable(
-            storage,
-            transaction,
-            parseResult.namespaceName(),
-            IcebergToTrinityLake.tableName(tableIdentifier));
+
     try {
+      transaction =
+          TrinityLake.dropTable(
+              storage,
+              transaction,
+              parseResult.namespaceName(),
+              IcebergToTrinityLake.tableName(tableIdentifier));
       commitOrSaveTransaction(parseResult, transaction);
       return true;
-    } catch (TrinityLakeRuntimeException e) {
+    } catch (ObjectNotFoundException e) {
       return false;
     }
   }

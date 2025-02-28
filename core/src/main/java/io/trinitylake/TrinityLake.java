@@ -224,9 +224,11 @@ public class TrinityLake {
       LakehouseStorage storage, RunningTransaction transaction, String namespaceName)
       throws ObjectNotFoundException {
     LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+    String tableKeyNamespacePrefix =
+        ObjectKeys.tableKeyNamespacePrefix(namespaceName, lakehouseDef);
     return transaction.runningRoot().nodeKeyTable().stream()
         .map(NodeKeyTableRow::key)
-        .filter(key -> ObjectKeys.isTableKey(key, lakehouseDef))
+        .filter(key -> key.startsWith(tableKeyNamespacePrefix))
         .map(key -> ObjectKeys.tableNameFromKey(key, lakehouseDef))
         .collect(Collectors.toList());
   }

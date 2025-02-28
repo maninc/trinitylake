@@ -182,7 +182,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
       try {
         TrinityLake.commitTransaction(storage, transaction);
       } catch (StorageAtomicSealFailureException e) {
-        throw new CommitFailedException(e, "Detected conflicting transaction in lakehouse");
+        throw new CommitFailedException(
+            e, "Cannot commit, detected conflicting transaction in lakehouse");
       }
       // begin a new transaction since the previous one is already committed
       transaction = TrinityLake.beginTransaction(storage);
