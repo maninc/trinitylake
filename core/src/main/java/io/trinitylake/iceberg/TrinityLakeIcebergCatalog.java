@@ -14,6 +14,7 @@
 package io.trinitylake.iceberg;
 
 import com.google.protobuf.Descriptors;
+import io.trinitylake.DropNamespaceBehavior;
 import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TransactionOptions;
@@ -301,7 +302,9 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     RunningTransaction transaction = beginOrLoadTransaction(parseResult);
 
     try {
-      transaction = TrinityLake.dropNamespace(storage, transaction, parseResult.namespaceName());
+      transaction =
+          TrinityLake.dropNamespace(
+              storage, transaction, parseResult.namespaceName(), DropNamespaceBehavior.RESTRICT);
     } catch (ObjectNotFoundException e) {
       LOG.warn("Detected dropping non-existent namespace {}", namespace);
       return false;

@@ -16,6 +16,7 @@ package io.trinitylake;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.trinitylake.exception.NonEmptyNamespaceException;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.Column;
@@ -43,7 +44,7 @@ public abstract class TrinityLakeTests {
   protected static final NamespaceDef NAMESPACE_DEF =
       ObjectDefinitions.newNamespaceDefBuilder().putProperties("k1", "v1").build();
 
-  protected static final TableDef TABLE_DEF =
+  protected static final TableDef TABLE1_DEF =
       ObjectDefinitions.newTableDefBuilder()
           .setSchema(
               Schema.newBuilder()
@@ -52,7 +53,18 @@ public abstract class TrinityLakeTests {
           .putProperties("k1", "v1")
           .build();
 
-  protected static final String TABLE = "tbl1";
+  protected static final String TABLE1 = "tbl1";
+
+  protected static final TableDef TABLE2_DEF =
+      ObjectDefinitions.newTableDefBuilder()
+          .setSchema(
+              Schema.newBuilder()
+                  .addColumns(Column.newBuilder().setName("c2").setType(DataType.INT8).build())
+                  .build())
+          .putProperties("k2", "v2")
+          .build();
+
+  protected static final String TABLE2 = "tbl2";
 
   protected static final ViewDef VIEW_DEF =
       ObjectDefinitions.newViewDefBuilder()
@@ -64,7 +76,7 @@ public abstract class TrinityLakeTests {
                   .setDialect("spark-sql")
                   .build())
           .addReferencedObjectFullNames(
-              FullName.newBuilder().setNamespaceName(NAMESPACE).setName(TABLE).build())
+              FullName.newBuilder().setNamespaceName(NAMESPACE).setName(TABLE1).build())
           .putProperties("k1", "v1")
           .build();
 
@@ -125,11 +137,48 @@ public abstract class TrinityLakeTests {
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
     assertThat(TrinityLake.namespaceExists(storage, transaction, NAMESPACE)).isTrue();
-    transaction = TrinityLake.dropNamespace(storage, transaction, NAMESPACE);
+    transaction =
+        TrinityLake.dropNamespace(storage, transaction, NAMESPACE, DropNamespaceBehavior.RESTRICT);
     TrinityLake.commitTransaction(storage, transaction);
     transaction = TrinityLake.beginTransaction(storage);
 
     assertThat(TrinityLake.namespaceExists(storage, transaction, NAMESPACE)).isFalse();
+  }
+
+  @Test
+  public void testDropNamespaceCascade() {
+    LakehouseStorage storage = storage();
+    createNamespaceAndTables();
+
+    RunningTransaction transaction = TrinityLake.beginTransaction(storage);
+    assertThat(TrinityLake.namespaceExists(storage, transaction, NAMESPACE)).isTrue();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE2)).isTrue();
+    transaction =
+        TrinityLake.dropNamespace(storage, transaction, NAMESPACE, DropNamespaceBehavior.CASCADE);
+    TrinityLake.commitTransaction(storage, transaction);
+    transaction = TrinityLake.beginTransaction(storage);
+
+    assertThat(TrinityLake.namespaceExists(storage, transaction, NAMESPACE)).isFalse();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isFalse();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE2)).isFalse();
+  }
+
+  @Test
+  public void testDropNonEmptyNamespace() {
+    LakehouseStorage storage = storage();
+    createNamespaceAndTables();
+
+    RunningTransaction transaction = TrinityLake.beginTransaction(storage);
+    assertThat(TrinityLake.namespaceExists(storage, transaction, NAMESPACE)).isTrue();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE2)).isTrue();
+    assertThatThrownBy(
+            () ->
+                TrinityLake.dropNamespace(
+                    storage, transaction, NAMESPACE, DropNamespaceBehavior.RESTRICT))
+        .isInstanceOf(NonEmptyNamespaceException.class)
+        .hasMessageContaining(String.format("Namespace %s is not empty", NAMESPACE));
   }
 
   @Test
@@ -171,16 +220,16 @@ public abstract class TrinityLakeTests {
     createNamespaceAndCommit();
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
-    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE, TABLE_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF);
     TrinityLake.commitTransaction(storage, transaction);
 
     TreeRoot root = TreeOperations.findLatestRoot(storage);
     assertTreeRoot(2);
-    String t1Key = ObjectKeys.tableKey(NAMESPACE, TABLE, LAKEHOUSE_DEF);
+    String t1Key = ObjectKeys.tableKey(NAMESPACE, TABLE1, LAKEHOUSE_DEF);
     Optional<String> t1Path = TreeOperations.searchValue(storage, root, t1Key);
     assertThat(t1Path.isPresent()).isTrue();
     TableDef readDef = ObjectDefinitions.readTableDef(storage, t1Path.get());
-    assertThat(readDef).isEqualTo(TABLE_DEF);
+    assertThat(readDef).isEqualTo(TABLE1_DEF);
   }
 
   @Test
@@ -189,13 +238,13 @@ public abstract class TrinityLakeTests {
     createNamespaceAndCommit();
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
-    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE, TABLE_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF);
     TrinityLake.commitTransaction(storage, transaction);
 
     transaction = TrinityLake.beginTransaction(storage);
-    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE)).isTrue();
-    TableDef t1DefDescribe = TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE);
-    assertThat(t1DefDescribe).isEqualTo(TABLE_DEF);
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    TableDef t1DefDescribe = TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE1);
+    assertThat(t1DefDescribe).isEqualTo(TABLE1_DEF);
   }
 
   @Test
@@ -204,13 +253,13 @@ public abstract class TrinityLakeTests {
     createNamespaceAndCommit();
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
-    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE, TABLE_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF);
     TrinityLake.commitTransaction(storage, transaction);
 
     transaction = TrinityLake.beginTransaction(storage);
-    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE)).isTrue();
-    TableDef t1DefDescribe = TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE);
-    assertThat(t1DefDescribe).isEqualTo(TABLE_DEF);
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    TableDef t1DefDescribe = TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE1);
+    assertThat(t1DefDescribe).isEqualTo(TABLE1_DEF);
 
     TableDef t1DefAlter =
         ObjectDefinitions.newTableDefBuilder()
@@ -221,12 +270,13 @@ public abstract class TrinityLakeTests {
                     .build())
             .putProperties("k1", "v2")
             .build();
-    transaction = TrinityLake.alterTable(storage, transaction, NAMESPACE, TABLE, t1DefAlter);
+    transaction = TrinityLake.alterTable(storage, transaction, NAMESPACE, TABLE1, t1DefAlter);
     TrinityLake.commitTransaction(storage, transaction);
 
     transaction = TrinityLake.beginTransaction(storage);
-    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE)).isTrue();
-    TableDef t1DefAlterDescribe = TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE);
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    TableDef t1DefAlterDescribe =
+        TrinityLake.describeTable(storage, transaction, NAMESPACE, TABLE1);
     assertThat(t1DefAlterDescribe).isEqualTo(t1DefAlter);
   }
 
@@ -236,16 +286,16 @@ public abstract class TrinityLakeTests {
     createNamespaceAndCommit();
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
-    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE, TABLE_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF);
     TrinityLake.commitTransaction(storage, transaction);
 
     transaction = TrinityLake.beginTransaction(storage);
-    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE)).isTrue();
-    transaction = TrinityLake.dropTable(storage, transaction, NAMESPACE, TABLE);
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isTrue();
+    transaction = TrinityLake.dropTable(storage, transaction, NAMESPACE, TABLE1);
     TrinityLake.commitTransaction(storage, transaction);
 
     transaction = TrinityLake.beginTransaction(storage);
-    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE)).isFalse();
+    assertThat(TrinityLake.tableExists(storage, transaction, NAMESPACE, TABLE1)).isFalse();
   }
 
   @Test
@@ -254,7 +304,7 @@ public abstract class TrinityLakeTests {
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
     assertThatThrownBy(
-            () -> TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE, TABLE_DEF))
+            () -> TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF))
         .isInstanceOf(ObjectNotFoundException.class);
   }
 
@@ -345,6 +395,15 @@ public abstract class TrinityLakeTests {
     LakehouseStorage storage = storage();
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
     transaction = TrinityLake.createNamespace(storage, transaction, NAMESPACE, NAMESPACE_DEF);
+    TrinityLake.commitTransaction(storage, transaction);
+  }
+
+  protected void createNamespaceAndTables() {
+    LakehouseStorage storage = storage();
+    RunningTransaction transaction = TrinityLake.beginTransaction(storage);
+    transaction = TrinityLake.createNamespace(storage, transaction, NAMESPACE, NAMESPACE_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE1, TABLE1_DEF);
+    transaction = TrinityLake.createTable(storage, transaction, NAMESPACE, TABLE2, TABLE2_DEF);
     TrinityLake.commitTransaction(storage, transaction);
   }
 }

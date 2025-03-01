@@ -13,9 +13,11 @@
  */
 package io.trinitylake.spark;
 
+import io.trinitylake.DropNamespaceBehavior;
 import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
 import io.trinitylake.TrinityLake;
+import io.trinitylake.exception.NonEmptyNamespaceException;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.NamespaceDef;
@@ -30,7 +32,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NamespaceAlreadyExistsException;
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-import org.apache.spark.sql.catalyst.analysis.NonEmptyNamespaceException;
 import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
 import org.apache.spark.sql.connector.catalog.Column;
 import org.apache.spark.sql.connector.catalog.Identifier;
@@ -140,22 +141,22 @@ public class TrinityLakeSparkCatalog implements StagingTableCatalog, SupportsNam
 
   @Override
   public boolean dropNamespace(String[] namespace, boolean cascade)
-      throws NoSuchNamespaceException, NonEmptyNamespaceException {
+      throws NoSuchNamespaceException,
+          org.apache.spark.sql.catalyst.analysis.NonEmptyNamespaceException {
     String namespaceName = SparkToTrinityLake.namespaceName(namespace);
     RunningTransaction transaction = currentTransaction();
 
     try {
-      transaction = TrinityLake.dropNamespace(storage, transaction, namespaceName);
+      transaction =
+          TrinityLake.dropNamespace(
+              storage,
+              transaction,
+              namespaceName,
+              cascade ? DropNamespaceBehavior.CASCADE : DropNamespaceBehavior.RESTRICT);
     } catch (ObjectNotFoundException e) {
       throw new NoSuchNamespaceException(namespace);
-    }
-
-    // TODO: move this to the core library
-    if (cascade) {
-      List<String> tableNames = TrinityLake.showTables(storage, transaction, namespaceName);
-      for (String tableName : tableNames) {
-        transaction = TrinityLake.dropTable(storage, transaction, namespaceName, tableName);
-      }
+    } catch (NonEmptyNamespaceException e) {
+      throw new org.apache.spark.sql.catalyst.analysis.NonEmptyNamespaceException(namespace);
     }
 
     TrinityLake.commitTransaction(storage, transaction);

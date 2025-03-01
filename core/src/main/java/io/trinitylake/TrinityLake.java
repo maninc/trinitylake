@@ -14,6 +14,7 @@
 package io.trinitylake;
 
 import io.trinitylake.exception.CommitFailureException;
+import io.trinitylake.exception.NonEmptyNamespaceException;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
 import io.trinitylake.models.LakehouseDef;
@@ -208,17 +209,45 @@ public class TrinityLake {
   }
 
   public static RunningTransaction dropNamespace(
-      LakehouseStorage storage, RunningTransaction transaction, String namespaceName)
-      throws ObjectNotFoundException, CommitFailureException {
-    LakehouseDef lakehouseDef = TreeOperations.findLakehouseDef(storage, transaction.runningRoot());
+      LakehouseStorage storage,
+      RunningTransaction transaction,
+      String namespaceName,
+      DropNamespaceBehavior dropNsBehavior)
+      throws ObjectNotFoundException, NonEmptyNamespaceException, CommitFailureException {
+    RunningTransaction dropNsTransaction = transaction;
+    LakehouseDef lakehouseDef =
+        TreeOperations.findLakehouseDef(storage, dropNsTransaction.runningRoot());
     String namespaceKey = ObjectKeys.namespaceKey(namespaceName, lakehouseDef);
-    if (!TreeOperations.searchValue(storage, transaction.runningRoot(), namespaceKey).isPresent()) {
+    if (!TreeOperations.searchValue(storage, dropNsTransaction.runningRoot(), namespaceKey)
+        .isPresent()) {
       throw new ObjectNotFoundException("Namespace %s does not exist", namespaceName);
     }
 
-    TreeRoot newRoot = TreeOperations.cloneTreeRoot(transaction.runningRoot());
+    List<String> tableNames = TrinityLake.showTables(storage, dropNsTransaction, namespaceName);
+
+    switch (dropNsBehavior) {
+      case CASCADE:
+        for (String tableName : tableNames) {
+          dropNsTransaction =
+              TrinityLake.dropTable(storage, dropNsTransaction, namespaceName, tableName);
+        }
+        break;
+      case RESTRICT:
+        if (!tableNames.isEmpty()) {
+          throw new NonEmptyNamespaceException("Namespace %s is not empty", namespaceName);
+        }
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format("DropNamespaceBehavior %s is not supported", dropNsBehavior));
+    }
+
+    TreeRoot newRoot = TreeOperations.cloneTreeRoot(dropNsTransaction.runningRoot());
     TreeOperations.removeKey(storage, newRoot, namespaceKey);
-    return ImmutableRunningTransaction.builder().from(transaction).runningRoot(newRoot).build();
+    return ImmutableRunningTransaction.builder()
+        .from(dropNsTransaction)
+        .runningRoot(newRoot)
+        .build();
   }
 
   public static List<String> showTables(
