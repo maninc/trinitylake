@@ -8,7 +8,7 @@ When making changes to the local files and test them out, you can build the imag
 
 ```bash
 # Build the project from trinitylake root directory
-./gradlew :trinitylake-spark:build
+./gradlew :trinitylake-spark:trinitylake-spark-runtime-3.5_2.12:shadowJar
 
 # Rebuild the docker image
 docker image rm -f trinitylake/trinitylake-gravitino-iceberg-rest-server && docker build -t trinitylake/trinitylake-gravitino-iceberg-rest-server -f docker/trinitylake-gravitino-iceberg-rest-server/Dockerfile .

@@ -23,15 +23,28 @@ See [Using Distributed Transaction in Iceberg Catalog](./iceberg.md#using-distri
 ## Apache Gravitino IRC Server
 
 The easiest way to start a TrinityLake-backed IRC server is to use the Apache Gravitino IRC Server.
+You can run the Gravitino Iceberg REST server integrated with TrinityLake backend in two ways.
 
-### Installation
+### Using the Prebuilt Docker Image (Recommended)
+
+Pull the docker image from official trinitylake docker account
+```
+docker pull trinitylake/trinitylake-gravitino-iceberg-rest-server:latest
+```
+
+Run the Gravitino IRC Server container with port mapping
+```
+docker run -d -p 9001:9001 --name trinitylake-gravitino-iceberg-rest-server trinitylake/trinitylake-gravitino-iceberg-rest-server
+```
+
+### Using Apache Gravitino Installation (Manual Setup)
 
 Follow the [Apache Gravitino instructions](https://gravitino.apache.org/docs/0.8.0-incubating/how-to-install) 
 for downloading and installing the Gravitino software.
 After the standard installation process, add the `trinitylake-spark-runtime-3.5_2.12-0.0.1.jar` to your Java classpath or
 copy the trinitylake spark runtime jar into Gravitino’s `lib/` directory . 
 
-### Configuration
+#### Configuration
 
 Update `gravitino-iceberg-rest-server.conf` with the following configuration:
 
@@ -44,7 +57,7 @@ Update `gravitino-iceberg-rest-server.conf` with the following configuration:
 | gravitino.iceberg-rest.warehouse            | Trinity lakehouse storage root URI                                                                          | Any file path. Ex: `/tmp/trinitylake`                  |
 | gravitino.iceberg-rest.<key\>               | Any other catalog properties, see [TrinityLake Iceberg catalog properties](./iceberg.md#catalog-properties) |                                                        |
 
-### Running the server
+#### Running the server
 
 To start the Gravitino Iceberg REST server
 ```
