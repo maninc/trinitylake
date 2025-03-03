@@ -7,20 +7,19 @@
 ## Introduction
 
 TrinityLake is an **Open Lakehouse Format** for Big Data Analytics, ML & AI.
-It allows anyone to build a fully functional lakehouse with storage (e.g. S3, HDFS) as the only dependency.
+It defines a storage layout on top of objects like
+[Apache Iceberg](https://iceberg.apache.org/) tables,
+[Substrait](https://substrait.io/) views, etc.
+to form a complete storage-only lakehouse.
 
-The TrinityLake format defines different objects in a lakehouse and 
-provides a consistent and efficient way for accessing and manipulating the interactions among these objects.
 It offers the following key features:
 
 - **Storage only** as a lakehouse solution that works exactly the same way locally, on premise and in the cloud
 - **Multi-object multi-statement transactions** with standard SQL `BEGIN` and `COMMIT` semantics
 - **Consistent time travel and snapshot export** across all objects in the lakehouse
-- **Distributed transactions** which can enable use cases like complicated write-audit-publish workflows
-- **Compatibility with open table formats** like Apache Iceberg, supporting both standard SQL `MANAGED` and `EXTERNAL` as well as federation-based access patterns.
-- **Compatibility with open catalog standards** like Apache Iceberg REST Catalog specification, serving as a highly scalable yet extremely lightweight backend implementation
+- **Distributed transactions** for complicated write-audit-publish workflows to execute a transaction across multiple engines
 
-For more details about the format, how to get started and how to join our community, 
+For more details about the format and the project community, 
 please visit [trinitylake.io](https://trinitylake.io).
 
 ## Building

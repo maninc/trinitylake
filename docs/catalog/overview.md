@@ -11,8 +11,10 @@ This leads to the following integration pattern:
 ![integration-pattern](./overview-integration-pattern.png)
 
 For users that want a complete solution with open catalog standards, 
-TrinityLake offers open source catalog servers like [an IRC server](./iceberg-rest.md). 
+TrinityLake offers open source catalog standard servers like [an IRC server](./iceberg-rest.md). 
 These servers are API compatible and serve as proxy server that uses the TrinityLake SDK to perform translation, authZ, execution, etc.
 
 For users that would like to customize a catalog server solution, 
-the TrinityLake SDK can also be used to flexibly fill in the different logic layers in a catalog server.
+the TrinityLake SDK can also be used to flexibly fill in the different parts of logic in a catalog server,
+so that users can choose to only implement the parts of the server that they want to customize,
+and leave the rest to TrinityLake.

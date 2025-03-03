@@ -13,19 +13,14 @@
  */
 package io.trinitylake.iceberg;
 
-import java.io.Serializable;
-import java.util.Optional;
-import org.apache.iceberg.MetadataTableType;
-import org.immutables.value.Value;
+public class IcebergFormatProperties {
 
-@Value.Immutable
-public interface IcebergTableIdentifierParseResult extends Serializable {
+  private IcebergFormatProperties() {}
 
-  Optional<String> distTransactionId();
+  public static final String TABLE_FORMAT_ICEBERG = "ICEBERG";
 
-  String namespaceName();
+  public static final String METADATA_LOCATION_FORMAT_PROPERTY = "metadata_location";
 
-  String tableName();
-
-  Optional<MetadataTableType> metadataTableType();
+  public static final String PREVIOUS_METADATA_LOCATION_FORMAT_PROPERTY =
+      "previous_metadata_location";
 }

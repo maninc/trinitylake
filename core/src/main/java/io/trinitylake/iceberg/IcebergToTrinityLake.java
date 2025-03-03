@@ -23,7 +23,7 @@ public class IcebergToTrinityLake {
 
   private IcebergToTrinityLake() {}
 
-  public static IcebergNamespaceParseResult parseNamespace(
+  public static IcebergNamespaceInfo parseNamespace(
       Namespace namespace, TrinityLakeIcebergCatalogProperties catalogProperties) {
     ValidationUtil.checkArgument(
         !namespace.isEmpty(), "Empty namespace is not allowed in TrinityLake");
@@ -31,14 +31,14 @@ public class IcebergToTrinityLake {
     if (!catalogProperties.systemNamespaceName().equals(namespace.level(0))) {
       ValidationUtil.checkArgument(
           namespace.length() == 1, "Namespace name must only have 1 level");
-      return ImmutableIcebergNamespaceParseResult.builder()
+      return ImmutableIcebergNamespaceInfo.builder()
           .isSystem(false)
           .namespaceName(namespace.level(0))
           .build();
     }
 
     if (namespace.length() == 1) {
-      return ImmutableIcebergNamespaceParseResult.builder()
+      return ImmutableIcebergNamespaceInfo.builder()
           .isSystem(true)
           .namespaceName(catalogProperties.systemNamespaceName())
           .build();
@@ -51,7 +51,7 @@ public class IcebergToTrinityLake {
           distTransactionId.startsWith(catalogProperties.dtxnNamespacePrefix()),
           "Distributed transaction namespace name must start with %s",
           catalogProperties.dtxnNamespacePrefix());
-      return ImmutableIcebergNamespaceParseResult.builder()
+      return ImmutableIcebergNamespaceInfo.builder()
           .isSystem(false)
           .distTransactionId(
               distTransactionId.substring(catalogProperties.dtxnNamespacePrefix().length()))
@@ -63,7 +63,7 @@ public class IcebergToTrinityLake {
         "Unknown parent namespace name in system namespace: %s", parentNamespaceName);
   }
 
-  public static IcebergTableIdentifierParseResult parseTableIdentifier(
+  public static IcebergTableInfo parseTableIdentifier(
       TableIdentifier tableIdentifier, TrinityLakeIcebergCatalogProperties catalogProperties) {
     Namespace namespace = tableIdentifier.namespace();
 
@@ -75,7 +75,7 @@ public class IcebergToTrinityLake {
           namespace.length() <= 2, "Namespace name must only have 1 level");
 
       if (namespace.length() == 1) {
-        return ImmutableIcebergTableIdentifierParseResult.builder()
+        return ImmutableIcebergTableInfo.builder()
             .namespaceName(namespace.level(0))
             .tableName(tableIdentifier.name())
             .build();
@@ -87,7 +87,7 @@ public class IcebergToTrinityLake {
           "Unknown metadata table type %s in table identifier: %s",
           tableIdentifier.name(),
           tableIdentifier);
-      return ImmutableIcebergTableIdentifierParseResult.builder()
+      return ImmutableIcebergTableInfo.builder()
           .namespaceName(namespace.level(0))
           .tableName(namespace.level(1))
           .metadataTableType(metadataTableType)
@@ -114,7 +114,7 @@ public class IcebergToTrinityLake {
         distTransactionNamespace.substring(catalogProperties.dtxnNamespacePrefix().length());
 
     if (namespace.length() == 3) {
-      return ImmutableIcebergTableIdentifierParseResult.builder()
+      return ImmutableIcebergTableInfo.builder()
           .distTransactionId(distTransactionId)
           .namespaceName(namespace.level(2))
           .tableName(tableIdentifier.name())
@@ -127,7 +127,7 @@ public class IcebergToTrinityLake {
         "Unknown metadata table type %s in table identifier: %s",
         tableIdentifier.name(),
         tableIdentifier);
-    return ImmutableIcebergTableIdentifierParseResult.builder()
+    return ImmutableIcebergTableInfo.builder()
         .distTransactionId(distTransactionId)
         .namespaceName(namespace.level(2))
         .tableName(namespace.level(3))

@@ -17,7 +17,6 @@ import com.google.protobuf.Descriptors;
 import io.trinitylake.DropNamespaceBehavior;
 import io.trinitylake.ObjectDefinitions;
 import io.trinitylake.RunningTransaction;
-import io.trinitylake.TransactionOptions;
 import io.trinitylake.TrinityLake;
 import io.trinitylake.exception.ObjectAlreadyExistsException;
 import io.trinitylake.exception.ObjectNotFoundException;
@@ -47,12 +46,12 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.Transaction;
+import org.apache.iceberg.Transactions;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
-import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.NamespaceNotEmptyException;
 import org.apache.iceberg.exceptions.NoSuchNamespaceException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -127,18 +126,17 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       return false;
     }
 
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    if (parseResult.isSystem()) {
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    if (nsInfo.isSystem()) {
       return TrinityLake.lakehouseExists(storage);
     }
 
-    if (parseResult.distTransactionId().isPresent()) {
-      return TrinityLake.distTransactionExists(storage, parseResult.distTransactionId().get());
+    if (nsInfo.distTransactionId().isPresent()) {
+      return TrinityLake.distTransactionExists(storage, nsInfo.distTransactionId().get());
     }
 
     RunningTransaction transaction = TrinityLake.beginTransaction(storage);
-    return TrinityLake.namespaceExists(storage, transaction, parseResult.namespaceName());
+    return TrinityLake.namespaceExists(storage, transaction, nsInfo.namespaceName());
   }
 
   @Override
@@ -157,18 +155,17 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       return listNamespaces();
     }
 
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    if (parseResult.isSystem()) {
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    if (nsInfo.isSystem()) {
       return ImmutableList.of(
           Namespace.of(
               catalogProperties.systemNamespaceName(),
               catalogProperties.dtxnParentNamespaceName()));
     }
 
-    if (parseResult.distTransactionId().isPresent()) {
+    if (nsInfo.distTransactionId().isPresent()) {
       RunningTransaction transaction =
-          TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get());
+          TrinityLake.loadDistTransaction(storage, nsInfo.distTransactionId().get());
       return TrinityLake.showNamespaces(storage, transaction).stream()
           .map(Namespace::of)
           .collect(Collectors.toList());
@@ -180,16 +177,15 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   @Override
   public Map<String, String> loadNamespaceMetadata(Namespace namespace)
       throws NoSuchNamespaceException {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    if (parseResult.isSystem()) {
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    if (nsInfo.isSystem()) {
       return ImmutableMap.of();
     }
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
     try {
       NamespaceDef namespaceDef =
-          TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+          TrinityLake.describeNamespace(storage, transaction, nsInfo.namespaceName());
       return namespaceDef.getPropertiesMap();
     } catch (ObjectNotFoundException e) {
       throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
@@ -203,9 +199,8 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public void createNamespace(Namespace namespace, Map<String, String> properties) {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    if (parseResult.isSystem()) {
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    if (nsInfo.isSystem()) {
       LakehouseDef.Builder builder = ObjectDefinitions.newLakehouseDefBuilder();
       for (Map.Entry<String, String> entry : properties.entrySet()) {
         Descriptors.FieldDescriptor field =
@@ -218,14 +213,14 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       return;
     }
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
 
     try {
       transaction =
           TrinityLake.createNamespace(
               storage,
               transaction,
-              parseResult.namespaceName(),
+              nsInfo.namespaceName(),
               ObjectDefinitions.newNamespaceDefBuilder()
                   .putAllProperties(properties)
                   .setId(UUID.randomUUID().toString())
@@ -234,7 +229,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
       throw new AlreadyExistsException("Namespace already exists: %s", namespace);
     }
 
-    if (!parseResult.distTransactionId().isPresent()) {
+    if (!nsInfo.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);
     }
   }
@@ -242,13 +237,12 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   @Override
   public boolean removeProperties(Namespace namespace, Set<String> propertyKeys)
       throws NoSuchNamespaceException {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
 
     NamespaceDef currentDef;
     try {
-      currentDef = TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+      currentDef = TrinityLake.describeNamespace(storage, transaction, nsInfo.namespaceName());
     } catch (ObjectNotFoundException e) {
       throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
     }
@@ -259,9 +253,9 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     transaction =
         TrinityLake.alterNamespace(
-            storage, transaction, parseResult.namespaceName(), newDefBuilder.build());
+            storage, transaction, nsInfo.namespaceName(), newDefBuilder.build());
 
-    if (!parseResult.distTransactionId().isPresent()) {
+    if (!nsInfo.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);
     }
     return true;
@@ -270,13 +264,12 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   @Override
   public boolean setProperties(Namespace namespace, Map<String, String> properties)
       throws NoSuchNamespaceException {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
 
     NamespaceDef currentDef;
     try {
-      currentDef = TrinityLake.describeNamespace(storage, transaction, parseResult.namespaceName());
+      currentDef = TrinityLake.describeNamespace(storage, transaction, nsInfo.namespaceName());
     } catch (ObjectNotFoundException e) {
       throw new NoSuchNamespaceException("Namespace does not exist: %s", namespace);
     }
@@ -287,9 +280,9 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     transaction =
         TrinityLake.alterNamespace(
-            storage, transaction, parseResult.namespaceName(), newDefBuilder.build());
+            storage, transaction, nsInfo.namespaceName(), newDefBuilder.build());
 
-    if (!parseResult.distTransactionId().isPresent()) {
+    if (!nsInfo.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);
     }
     return true;
@@ -297,20 +290,19 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public boolean dropNamespace(Namespace namespace) throws NamespaceNotEmptyException {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
 
     try {
       transaction =
           TrinityLake.dropNamespace(
-              storage, transaction, parseResult.namespaceName(), DropNamespaceBehavior.RESTRICT);
+              storage, transaction, nsInfo.namespaceName(), DropNamespaceBehavior.RESTRICT);
     } catch (ObjectNotFoundException e) {
       LOG.warn("Detected dropping non-existent namespace {}", namespace);
       return false;
     }
 
-    if (!parseResult.distTransactionId().isPresent()) {
+    if (!nsInfo.distTransactionId().isPresent()) {
       TrinityLake.commitTransaction(storage, transaction);
     }
     return true;
@@ -318,16 +310,14 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public List<TableIdentifier> listTables(Namespace namespace) {
-    IcebergNamespaceParseResult parseResult =
-        IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
+    IcebergNamespaceInfo nsInfo = IcebergToTrinityLake.parseNamespace(namespace, catalogProperties);
 
-    if (parseResult.isSystem()) {
+    if (nsInfo.isSystem()) {
       return ImmutableList.of();
     }
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
-    List<String> tableNames =
-        TrinityLake.showTables(storage, transaction, parseResult.namespaceName());
+    RunningTransaction transaction = beginOrLoadTransaction(nsInfo);
+    List<String> tableNames = TrinityLake.showTables(storage, transaction, nsInfo.namespaceName());
     return tableNames.stream()
         .map(t -> TableIdentifier.of(namespace, t))
         .collect(Collectors.toList());
@@ -335,76 +325,77 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
   @Override
   public boolean tableExists(TableIdentifier tableIdentifier) {
-    IcebergTableIdentifierParseResult parseResult =
+    IcebergTableInfo tableInfo =
         IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
 
     return TrinityLake.tableExists(
-        storage, transaction, parseResult.namespaceName(), parseResult.tableName());
+        storage, transaction, tableInfo.namespaceName(), tableInfo.tableName());
   }
 
   @Override
   public Table loadTable(TableIdentifier tableIdentifier) {
-    IcebergTableIdentifierParseResult parseResult =
+    IcebergTableInfo tableInfo =
         IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
 
     TableOperations ops =
-        new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+        new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
     if (ops.current() == null) {
       throw new NoSuchTableException("Table does not exist: %s", tableIdentifier);
     }
 
-    if (parseResult.metadataTableType().isPresent()) {
+    if (tableInfo.metadataTableType().isPresent()) {
       return MetadataTableUtils.createMetadataTableInstance(
           ops,
           name(),
-          TableIdentifier.of(parseResult.namespaceName(), parseResult.tableName()),
+          TableIdentifier.of(tableInfo.namespaceName(), tableInfo.tableName()),
           tableIdentifier,
-          parseResult.metadataTableType().get());
+          tableInfo.metadataTableType().get());
     }
 
     Table table =
         new BaseTable(
-            ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
+            ops, TrinityLakeToIceberg.fullTableName(catalogName, tableInfo), metricsReporter);
     LOG.info("Table loaded by catalog: {}", table);
     return table;
   }
 
   @Override
   public Table registerTable(TableIdentifier tableIdentifier, String metadataFileLocation) {
-    IcebergTableIdentifierParseResult parseResult =
+    IcebergTableInfo tableInfo =
         IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
     ValidationUtil.checkArgument(
-        !parseResult.metadataTableType().isPresent(),
+        !tableInfo.metadataTableType().isPresent(),
         "Cannot register metadata table: %s",
         tableIdentifier);
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
     try {
       transaction =
           TrinityLake.createTable(
               storage,
               transaction,
-              parseResult.namespaceName(),
-              parseResult.tableName(),
+              tableInfo.namespaceName(),
+              tableInfo.tableName(),
               ObjectDefinitions.newTableDefBuilder()
-                  .setTableFormat(TrinityLakeToIceberg.FORMAT_ICEBERG)
+                  .setTableFormat(IcebergFormatProperties.TABLE_FORMAT_ICEBERG)
                   .putFormatProperties(
-                      TrinityLakeToIceberg.METADATA_LOCATION_FORMAT_PROPERTY, metadataFileLocation)
+                      IcebergFormatProperties.METADATA_LOCATION_FORMAT_PROPERTY,
+                      metadataFileLocation)
                   .build());
     } catch (ObjectAlreadyExistsException e) {
       throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
     }
 
-    commitOrSaveTransaction(parseResult, transaction);
+    commitOrSaveTransaction(tableInfo, transaction);
     TableOperations ops =
-        new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+        new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
     return new BaseTable(
-        ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
+        ops, TrinityLakeToIceberg.fullTableName(catalogName, tableInfo), metricsReporter);
   }
 
   @Override
@@ -458,16 +449,16 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
     // TODO: provide a clear definition for purge vs no purge behavior.
     //  before that we will ignore the purge flag.
 
-    IcebergTableIdentifierParseResult parseResult =
+    IcebergTableInfo tableInfo =
         IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
 
-    RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+    RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
 
     try {
       transaction =
           TrinityLake.dropTable(
-              storage, transaction, parseResult.namespaceName(), parseResult.tableName());
-      commitOrSaveTransaction(parseResult, transaction);
+              storage, transaction, tableInfo.namespaceName(), tableInfo.tableName());
+      commitOrSaveTransaction(tableInfo, transaction);
       return true;
     } catch (ObjectNotFoundException e) {
       return false;
@@ -546,32 +537,22 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   @Override
   public void invalidateTable(TableIdentifier identifier) {}
 
-  private RunningTransaction beginOrLoadTransaction(IcebergNamespaceParseResult parseResult) {
+  private RunningTransaction beginOrLoadTransaction(IcebergNamespaceInfo nsInfo) {
     ValidationUtil.checkArgument(
-        !parseResult.isSystem(), "Cannot start transaction against system namespace");
-    return parseResult.distTransactionId().isPresent()
-        ? TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get())
+        !nsInfo.isSystem(), "Cannot start transaction against system namespace");
+    return nsInfo.distTransactionId().isPresent()
+        ? TrinityLake.loadDistTransaction(storage, nsInfo.distTransactionId().get())
         : TrinityLake.beginTransaction(storage);
   }
 
-  private RunningTransaction beginOrLoadTransaction(IcebergTableIdentifierParseResult parseResult) {
-    return parseResult.distTransactionId().isPresent()
-        ? TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get())
+  private RunningTransaction beginOrLoadTransaction(IcebergTableInfo tableInfo) {
+    return tableInfo.distTransactionId().isPresent()
+        ? TrinityLake.loadDistTransaction(storage, tableInfo.distTransactionId().get())
         : TrinityLake.beginTransaction(storage);
   }
 
-  private void commitOrSaveTransaction(
-      IcebergNamespaceParseResult parseResult, RunningTransaction transaction) {
-    if (parseResult.distTransactionId().isPresent()) {
-      TrinityLake.saveDistTransaction(storage, transaction);
-    } else {
-      TrinityLake.commitTransaction(storage, transaction);
-    }
-  }
-
-  private void commitOrSaveTransaction(
-      IcebergTableIdentifierParseResult parseResult, RunningTransaction transaction) {
-    if (parseResult.distTransactionId().isPresent()) {
+  private void commitOrSaveTransaction(IcebergTableInfo tableInfo, RunningTransaction transaction) {
+    if (tableInfo.distTransactionId().isPresent()) {
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       TrinityLake.commitTransaction(storage, transaction);
@@ -579,6 +560,7 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
   }
 
   private String defaultWarehouseLocation(TableIdentifier tableIdentifier) {
+    // TODO: think about what is the best route for table root
     return storage.root().extendPath(tableIdentifier.toString()).toString();
   }
 
@@ -631,159 +613,83 @@ public class TrinityLakeIcebergCatalog implements Catalog, SupportsNamespaces {
 
     @Override
     public Table create() {
-      IcebergTableIdentifierParseResult parseResult =
+      IcebergTableInfo tableInfo =
           IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
-      RunningTransaction transaction = beginOrLoadTransaction(parseResult);
+      RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
       TableOperations ops =
-          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
       if (ops.current() != null) {
         throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
       }
 
-      String baseLocation = location != null ? location : defaultWarehouseLocation(tableIdentifier);
-      tableProperties.putAll(tableOverrideProperties());
-      TableMetadata metadata =
-          TableMetadata.newTableMetadata(schema, spec, sortOrder, baseLocation, tableProperties);
-
-      try {
-        ops.commit(null, metadata);
-      } catch (CommitFailedException ignored) {
-        throw new AlreadyExistsException("Table was created concurrently: %s", tableIdentifier);
-      }
-
+      TableMetadata metadata = prepareNewTableMetadata();
+      ops.commit(null, metadata);
       return new BaseTable(
-          ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
+          ops, TrinityLakeToIceberg.fullTableName(catalogName, tableInfo), metricsReporter);
     }
 
     @Override
     public Transaction createTransaction() {
-      IcebergTableIdentifierParseResult parseResult =
+      IcebergTableInfo tableInfo =
           IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
 
-      RunningTransaction transaction;
-      String distTransactionId;
-      if (parseResult.distTransactionId().isPresent()) {
-        distTransactionId = parseResult.distTransactionId().get();
-        transaction =
-            TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get());
-      } else {
-        distTransactionId = UUID.randomUUID().toString().replace("-", "");
-        transaction =
-            TrinityLake.beginTransaction(
-                storage, ImmutableMap.of(TransactionOptions.ID, distTransactionId));
-        parseResult =
-            ImmutableIcebergTableIdentifierParseResult.builder()
-                .from(parseResult)
-                .distTransactionId(distTransactionId)
-                .build();
-      }
-
-      TableOperations ops =
-          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+      RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
+      TrinityLakeIcebergTableOperations ops =
+          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
       if (ops.current() != null) {
         throw new AlreadyExistsException("Table already exists: %s", tableIdentifier);
       }
 
-      String baseLocation = location != null ? location : defaultWarehouseLocation(tableIdentifier);
-      tableProperties.putAll(tableOverrideProperties());
-      TableMetadata metadata =
-          TableMetadata.newTableMetadata(schema, spec, sortOrder, baseLocation, tableProperties);
-      ops.commit(null, metadata);
-      Table table =
-          new BaseTable(
-              ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
-
-      return new TrinityLakeIcebergTransaction(storage, table, distTransactionId);
+      TableMetadata metadata = prepareNewTableMetadata();
+      return Transactions.createTableTransaction(
+          tableIdentifier.toString(), ops, metadata, metricsReporter);
     }
 
     @Override
     public Transaction replaceTransaction() {
-      IcebergTableIdentifierParseResult parseResult =
+      IcebergTableInfo tableInfo =
           IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
 
-      RunningTransaction transaction;
-      String distTransactionId;
-      if (parseResult.distTransactionId().isPresent()) {
-        distTransactionId = parseResult.distTransactionId().get();
-        transaction =
-            TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get());
-      } else {
-        distTransactionId = UUID.randomUUID().toString().replace("-", "");
-        transaction =
-            TrinityLake.beginTransaction(
-                storage, ImmutableMap.of(TransactionOptions.ID, distTransactionId));
-        parseResult =
-            ImmutableIcebergTableIdentifierParseResult.builder()
-                .from(parseResult)
-                .distTransactionId(distTransactionId)
-                .build();
-      }
-
-      TableOperations ops =
-          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+      RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
+      TrinityLakeIcebergTableOperations ops =
+          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
       if (ops.current() == null) {
         throw new NoSuchTableException("Table does not exist: %s", tableIdentifier);
       }
 
-      String baseLocation = location != null ? location : defaultWarehouseLocation(tableIdentifier);
-      tableProperties.putAll(tableOverrideProperties());
-      TableMetadata metadata =
-          ops.current().buildReplacement(schema, spec, sortOrder, baseLocation, tableProperties);
-      ops.commit(ops.current(), metadata);
-      Table table =
-          new BaseTable(
-              ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
-
-      return new TrinityLakeIcebergTransaction(storage, table, distTransactionId);
+      TableMetadata metadata = prepareReplaceTableMetadata(ops);
+      return Transactions.replaceTableTransaction(
+          tableIdentifier.toString(), ops, metadata, metricsReporter);
     }
 
     @Override
     public Transaction createOrReplaceTransaction() {
-      IcebergTableIdentifierParseResult parseResult =
+      IcebergTableInfo tableInfo =
           IcebergToTrinityLake.parseTableIdentifier(tableIdentifier, catalogProperties);
 
-      RunningTransaction transaction;
-      String distTransactionId;
-      if (parseResult.distTransactionId().isPresent()) {
-        distTransactionId = parseResult.distTransactionId().get();
-        transaction =
-            TrinityLake.loadDistTransaction(storage, parseResult.distTransactionId().get());
-      } else {
-        distTransactionId = UUID.randomUUID().toString().replace("-", "");
-        transaction =
-            TrinityLake.beginTransaction(
-                storage, ImmutableMap.of(TransactionOptions.ID, distTransactionId));
-        parseResult =
-            ImmutableIcebergTableIdentifierParseResult.builder()
-                .from(parseResult)
-                .distTransactionId(distTransactionId)
-                .build();
-      }
+      RunningTransaction transaction = beginOrLoadTransaction(tableInfo);
+      TrinityLakeIcebergTableOperations ops =
+          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, tableInfo);
 
-      TableOperations ops =
-          new TrinityLakeIcebergTableOperations(storage, allProperties, transaction, parseResult);
+      TableMetadata metadata =
+          ops.current() == null ? prepareNewTableMetadata() : prepareReplaceTableMetadata(ops);
+      return Transactions.createOrReplaceTableTransaction(
+          tableIdentifier.toString(), ops, metadata, metricsReporter);
+    }
 
+    private TableMetadata prepareNewTableMetadata() {
       String baseLocation = location != null ? location : defaultWarehouseLocation(tableIdentifier);
       tableProperties.putAll(tableOverrideProperties());
+      return TableMetadata.newTableMetadata(schema, spec, sortOrder, baseLocation, tableProperties);
+    }
 
-      if (ops.current() == null) {
-        TableMetadata metadata =
-            TableMetadata.newTableMetadata(schema, spec, sortOrder, baseLocation, tableProperties);
-        ops.commit(null, metadata);
-      } else {
-        TableMetadata metadata =
-            ops.current().buildReplacement(schema, spec, sortOrder, baseLocation, tableProperties);
-        ops.commit(ops.current(), metadata);
-      }
-
-      Table table =
-          new BaseTable(
-              ops, TrinityLakeToIceberg.fullTableName(catalogName, parseResult), metricsReporter);
-
-      return new TrinityLakeIcebergTransaction(storage, table, distTransactionId);
+    private TableMetadata prepareReplaceTableMetadata(TableOperations ops) {
+      String baseLocation = location != null ? location : defaultWarehouseLocation(tableIdentifier);
+      tableProperties.putAll(tableOverrideProperties());
+      return ops.current().buildReplacement(schema, spec, sortOrder, baseLocation, tableProperties);
     }
 
     /**

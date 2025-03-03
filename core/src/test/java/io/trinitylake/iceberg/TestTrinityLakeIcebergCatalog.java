@@ -113,10 +113,4 @@ class TestTrinityLakeIcebergCatalog extends CatalogTests<TrinityLakeIcebergCatal
   public void renameTableNamespaceMissing() {
     // TODO: support rename
   }
-
-  @Test
-  @Override
-  public void testListTables() {
-    super.testListTables();
-  }
 }

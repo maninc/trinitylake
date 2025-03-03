@@ -26,11 +26,6 @@ import java.io.Serializable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import org.apache.iceberg.BaseMetastoreOperations;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.LocationProviders;
@@ -44,13 +39,10 @@ import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.NoSuchNamespaceException;
-import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.util.LocationUtil;
-import org.apache.iceberg.util.PropertyUtil;
-import org.apache.iceberg.util.Tasks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,13 +53,13 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
 
   private static final String DEFAULT_FILE_IO_IMPL = "org.apache.iceberg.io.ResolvingFileIO";
 
-  private LakehouseStorage storage;
+  private final LakehouseStorage storage;
+  private final Map<String, String> allProperties;
+  private final IcebergTableInfo tableInfo;
+  private final String namesapceTableName;
+  private final FileIO fileIO;
+
   private RunningTransaction transaction;
-  private IcebergTableIdentifierParseResult parseResult;
-  private String namesapceTableName;
-
-  private FileIO fileIO;
-
   private TableMetadata currentMetadata = null;
   private TableDef currentTableDef = null;
   private String currentMetadataLocation = null;
@@ -78,12 +70,13 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
       LakehouseStorage storage,
       Map<String, String> allProperties,
       RunningTransaction transaction,
-      IcebergTableIdentifierParseResult parseResult) {
+      IcebergTableInfo tableInfo) {
     this.storage = storage;
+    this.allProperties = allProperties;
     this.transaction = transaction;
-    this.parseResult = parseResult;
+    this.tableInfo = tableInfo;
     this.namesapceTableName =
-        String.format("%s.%s", parseResult.namespaceName(), parseResult.tableName());
+        String.format("%s.%s", tableInfo.namespaceName(), tableInfo.tableName());
     this.fileIO = initializeFileIO(allProperties);
   }
 
@@ -106,7 +99,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     try {
       this.currentTableDef =
           TrinityLake.describeTable(
-              storage, transaction, parseResult.namespaceName(), parseResult.tableName());
+              storage, transaction, tableInfo.namespaceName(), tableInfo.tableName());
       loadMetadata(TrinityLakeToIceberg.tableMetadataLocation(currentTableDef));
     } catch (ObjectNotFoundException e) {
       currentMetadata = null;
@@ -154,11 +147,12 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     }
 
     newTableDef.putFormatProperties(
-        TrinityLakeToIceberg.METADATA_LOCATION_FORMAT_PROPERTY, newMetadataLocation);
+        IcebergFormatProperties.METADATA_LOCATION_FORMAT_PROPERTY, newMetadataLocation);
 
     if (currentMetadataLocation != null) {
       newTableDef.putFormatProperties(
-          TrinityLakeToIceberg.PREVIOUS_METADATA_LOCATION_FORMAT_PROPERTY, currentMetadataLocation);
+          IcebergFormatProperties.PREVIOUS_METADATA_LOCATION_FORMAT_PROPERTY,
+          currentMetadataLocation);
     }
 
     if (currentMetadata != null) {
@@ -166,8 +160,8 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
           TrinityLake.alterTable(
               storage,
               transaction,
-              parseResult.namespaceName(),
-              parseResult.tableName(),
+              tableInfo.namespaceName(),
+              tableInfo.tableName(),
               newTableDef.build());
     } else {
       try {
@@ -175,17 +169,17 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
             TrinityLake.createTable(
                 storage,
                 transaction,
-                parseResult.namespaceName(),
-                parseResult.tableName(),
+                tableInfo.namespaceName(),
+                tableInfo.tableName(),
                 newTableDef.build());
       } catch (ObjectNotFoundException e) {
         throw new NoSuchNamespaceException(
-            "Namespace does not exist: %s.%s",
-            parseResult.namespaceName(), parseResult.tableName());
+            "Namespace does not exist: %s.%s", tableInfo.namespaceName(), tableInfo.tableName());
       }
     }
 
-    if (parseResult.distTransactionId().isPresent()) {
+    if (tableInfo.distTransactionId().isPresent()) {
+      // every commit needs to be saved to be used in a separated execution
       TrinityLake.saveDistTransaction(storage, transaction);
     } else {
       try {
@@ -244,37 +238,12 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
   }
 
   protected void loadMetadata(String newLocation) {
-    loadMetadata(newLocation, null, 20);
-  }
-
-  protected void loadMetadata(
-      String newLocation, Predicate<Exception> shouldRetry, int numRetries) {
-    loadMetadata(
-        newLocation,
-        shouldRetry,
-        numRetries,
-        metadataLocation -> TableMetadataParser.read(io(), metadataLocation));
-  }
-
-  protected void loadMetadata(
-      String newLocation,
-      Predicate<Exception> shouldRetry,
-      int numRetries,
-      Function<String, TableMetadata> metadataLoader) {
     // use null-safe equality check because new tables have a null metadata location
     if (!Objects.equal(currentMetadataLocation, newLocation)) {
       LOG.info("Loading table metadata from location: {}", newLocation);
 
-      AtomicReference<TableMetadata> newMetadata = new AtomicReference<>();
-      Tasks.foreach(newLocation)
-          .retry(numRetries)
-          .exponentialBackoff(100, 5000, 600000, 4.0 /* 100, 400, 1600, ... */)
-          .throwFailureWhenFinished()
-          .stopRetryOn(NotFoundException.class) // overridden if shouldRetry is non-null
-          .shouldRetryTest(shouldRetry)
-          .run(metadataLocation -> newMetadata.set(metadataLoader.apply(metadataLocation)));
-
-      String newUUID = newMetadata.get().uuid();
+      TableMetadata newMetadata = TableMetadataParser.read(io(), newLocation);
+      String newUUID = newMetadata.uuid();
       if (currentMetadata != null && currentMetadata.uuid() != null && newUUID != null) {
         ValidationUtil.checkState(
             newUUID.equals(currentMetadata.uuid()),
@@ -283,7 +252,7 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
             newUUID);
       }
 
-      this.currentMetadata = newMetadata.get();
+      this.currentMetadata = newMetadata;
       this.currentMetadataLocation = newLocation;
       this.version = parseVersion(newLocation);
     }
@@ -358,43 +327,6 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
     return true;
   }
 
-  /**
-   * Attempt to load the table and see if any current or past metadata location matches the one we
-   * were attempting to set. This is used as a last resort when we are dealing with exceptions that
-   * may indicate the commit has failed but are not proof that this is the case. Past locations must
-   * also be searched on the chance that a second committer was able to successfully commit on top
-   * of our commit.
-   *
-   * @param newMetadataLocation the path of the new commit file
-   * @param config metadata to use for configuration
-   * @return Commit Status of Success, Failure or Unknown
-   */
-  protected CommitStatus checkCommitStatus(String newMetadataLocation, TableMetadata config) {
-    return CommitStatus.valueOf(
-        checkCommitStatus(
-                namesapceTableName,
-                newMetadataLocation,
-                config.properties(),
-                () -> checkCurrentMetadataLocation(newMetadataLocation))
-            .name());
-  }
-
-  /**
-   * Validate if the new metadata location is the current metadata location or present within
-   * previous metadata files.
-   *
-   * @param newMetadataLocation newly written metadata location
-   * @return true if the new metadata location is the current metadata location or present within
-   *     previous metadata files.
-   */
-  private boolean checkCurrentMetadataLocation(String newMetadataLocation) {
-    TableMetadata metadata = refresh();
-    String currentMetadataFileLocation = metadata.metadataFileLocation();
-    return currentMetadataFileLocation.equals(newMetadataLocation)
-        || metadata.previousFiles().stream()
-            .anyMatch(log -> log.file().equals(newMetadataLocation));
-  }
-
   private String newTableMetadataFilePath(TableMetadata meta, int newVersion) {
     String codecName =
         meta.property(
@@ -426,90 +358,5 @@ public class TrinityLakeIcebergTableOperations implements TableOperations, Seria
       LOG.warn("Unable to parse version from metadata location: {}", metadataLocation, e);
       return -1;
     }
-  }
-
-  public enum CommitStatus {
-    FAILURE,
-    SUCCESS,
-    UNKNOWN
-  }
-
-  /**
-   * Attempt to load the content and see if any current or past metadata location matches the one we
-   * were attempting to set. This is used as a last resort when we are dealing with exceptions that
-   * may indicate the commit has failed but don't have proof that this is the case. Note that all
-   * the previous locations must also be searched on the chance that a second committer was able to
-   * successfully commit on top of our commit.
-   *
-   * @param tableOrViewName full name of the Table/View
-   * @param newMetadataLocation the path of the new commit file
-   * @param properties properties for retry
-   * @param commitStatusSupplier check if the latest metadata presents or not using metadata
-   *     location for table.
-   * @return Commit Status of Success, Failure or Unknown
-   */
-  protected BaseMetastoreOperations.CommitStatus checkCommitStatus(
-      String tableOrViewName,
-      String newMetadataLocation,
-      Map<String, String> properties,
-      Supplier<Boolean> commitStatusSupplier) {
-    int maxAttempts =
-        PropertyUtil.propertyAsInt(
-            properties,
-            TableProperties.COMMIT_NUM_STATUS_CHECKS,
-            TableProperties.COMMIT_NUM_STATUS_CHECKS_DEFAULT);
-    long minWaitMs =
-        PropertyUtil.propertyAsLong(
-            properties,
-            TableProperties.COMMIT_STATUS_CHECKS_MIN_WAIT_MS,
-            TableProperties.COMMIT_STATUS_CHECKS_MIN_WAIT_MS_DEFAULT);
-    long maxWaitMs =
-        PropertyUtil.propertyAsLong(
-            properties,
-            TableProperties.COMMIT_STATUS_CHECKS_MAX_WAIT_MS,
-            TableProperties.COMMIT_STATUS_CHECKS_MAX_WAIT_MS_DEFAULT);
-    long totalRetryMs =
-        PropertyUtil.propertyAsLong(
-            properties,
-            TableProperties.COMMIT_STATUS_CHECKS_TOTAL_WAIT_MS,
-            TableProperties.COMMIT_STATUS_CHECKS_TOTAL_WAIT_MS_DEFAULT);
-
-    AtomicReference<BaseMetastoreOperations.CommitStatus> status =
-        new AtomicReference<>(BaseMetastoreOperations.CommitStatus.UNKNOWN);
-
-    Tasks.foreach(newMetadataLocation)
-        .retry(maxAttempts)
-        .suppressFailureWhenFinished()
-        .exponentialBackoff(minWaitMs, maxWaitMs, totalRetryMs, 2.0)
-        .onFailure(
-            (location, checkException) ->
-                LOG.error("Cannot check if commit to {} exists.", tableOrViewName, checkException))
-        .run(
-            location -> {
-              boolean commitSuccess = commitStatusSupplier.get();
-
-              if (commitSuccess) {
-                LOG.info(
-                    "Commit status check: Commit to {} of {} succeeded",
-                    tableOrViewName,
-                    newMetadataLocation);
-                status.set(BaseMetastoreOperations.CommitStatus.SUCCESS);
-              } else {
-                LOG.warn(
-                    "Commit status check: Commit to {} of {} unknown, new metadata location is not current "
-                        + "or in history",
-                    tableOrViewName,
-                    newMetadataLocation);
-              }
-            });
-
-    if (status.get() == BaseMetastoreOperations.CommitStatus.UNKNOWN) {
-      LOG.error(
-          "Cannot determine commit state to {}. Failed during checking {} times. "
-              + "Treating commit state as unknown.",
-          tableOrViewName,
-          maxAttempts);
-    }
-    return status.get();
   }
 }

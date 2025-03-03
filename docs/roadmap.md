@@ -1,7 +1,8 @@
 # Roadmap
 
-The TrinityLake project mainly uses GitHub Project to organize roadmap items.
-Each GitHub Project represents a specific area that TrinityLake would like to explore:
+We mainly use [GitHub Project](https://github.com/trinitylake-io/trinitylake/projects?query=is%3Aopen)
+to organize roadmap items.
+Each GitHub project represents a specific area that TrinityLake would like to explore:
 
 | Area of Development                                                         | Description                                                                                                                       |
 |-----------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
@@ -12,6 +13,7 @@ Each GitHub Project represents a specific area that TrinityLake would like to ex
 | [Access Control](https://github.com/orgs/trinitylake-io/projects/9)         | Add access control related objects to the format like policy and principal, and integrate with policy language like Cedar Policy  |
 | [Index](https://github.com/orgs/trinitylake-io/projects/11)                 | Add index related objects to the format, such as clustering index, data sketches, vector index, etc.                              |
 | [Lock Mechanism](https://github.com/orgs/trinitylake-io/projects/8)         | Explore locking mechanism improvements, with features like global lock, table lock, etc.                                          |
+| [Lakehouse Procedures](https://github.com/orgs/trinitylake-io/projects/13)  | Add various procedures for lakehouse-wide operations such as expiring old versions, export a version, etc.                        |
 | [Streaming and Upsert](https://github.com/orgs/trinitylake-io/projects/10)  | Explore how streaming and upsert behaves in TrinityLake's transaction mechanism                                                   |
 | [Catalog Integration](https://github.com/orgs/trinitylake-io/projects/5)    | Improve integration with catalog standards, such as the Iceberg REST Catalog standard, Hive Metastore standard, etc.              |
 | [Spark Integration](https://github.com/orgs/trinitylake-io/projects/4)      | Improve integration with Apache Spark engine                                                                                      |
