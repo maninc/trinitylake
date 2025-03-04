@@ -15,12 +15,9 @@ package io.trinitylake;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.trinitylake.models.Column;
-import io.trinitylake.models.DataType;
 import io.trinitylake.models.LakehouseDef;
 import io.trinitylake.models.NamespaceDef;
 import io.trinitylake.models.SQLRepresentation;
-import io.trinitylake.models.Schema;
 import io.trinitylake.models.TableDef;
 import io.trinitylake.models.ViewDef;
 import io.trinitylake.relocated.com.google.common.collect.ImmutableMap;
@@ -31,6 +28,7 @@ import io.trinitylake.storage.LiteralURI;
 import io.trinitylake.storage.local.LocalStorageOps;
 import io.trinitylake.storage.local.LocalStorageOpsProperties;
 import java.io.File;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -40,22 +38,13 @@ public class TestObjectDefinitions {
   @TempDir private File tempDir;
   private LakehouseStorage storage;
 
-  private final String testNamespaceName = "test-namespace";
-  private final String testViewName = "test-view";
-  private final String testTableName = "test-table";
+  private String testNamespaceName = "test-namespace";
+  private String testViewName = "test-view";
+  private String testTableName = "test-table";
 
-  private final LakehouseDef lakehouseDef = ObjectDefinitions.newLakehouseDefBuilder().build();
-  private final NamespaceDef namespaceDef = NamespaceDef.newBuilder()
-          .putProperties("k1", "v1").build();
-  private final TableDef tableDef = TableDef.newBuilder()
-          .setSchema(Schema.newBuilder()
-                  .addColumns(
-                          Column.newBuilder()
-                                  .setName("col1")
-                                  .setType(DataType.VARCHAR)
-                                  .build()))
-          .putProperties("k1", "v1")
-          .build();
+  private LakehouseDef lakehouseDef = ObjectDefinitions.newLakehouseDefBuilder().build();
+  private NamespaceDef namespaceDef = ObjectDefinitions.newNamespaceDefBuilder().build();
+  private TableDef tableDef = ObjectDefinitions.newTableDefBuilder().build();
 
   private final ViewDef testViewDef =
       ObjectDefinitions.newViewDefBuilder()
@@ -80,6 +69,15 @@ public class TestObjectDefinitions {
         new BasicLakehouseStorage(
             new LiteralURI("file://" + tempDir),
             new LocalStorageOps(props, LocalStorageOpsProperties.instance()));
+
+    String randomSuffix = String.valueOf(UUID.randomUUID()).substring(0, 6);
+    this.testNamespaceName = "test-namespace-" + randomSuffix;
+    this.testViewName = "test-view-" + randomSuffix;
+    this.testTableName = "test-table-" + randomSuffix;
+
+    this.lakehouseDef = ObjectDefinitions.newLakehouseDefBuilder().build();
+    this.namespaceDef = ObjectDefinitions.newNamespaceDefBuilder().build();
+    this.tableDef = ObjectDefinitions.newTableDefBuilder().build();
   }
 
   @Test
@@ -118,7 +116,8 @@ public class TestObjectDefinitions {
 
     File namespaceDefFile = new File(tempDir, namespaceDefFilePath);
     assertThat(namespaceDefFile.exists()).isFalse();
-    ObjectDefinitions.writeNamespaceDef(storage, namespaceDefFilePath, testNamespaceName, namespaceDef);
+    ObjectDefinitions.writeNamespaceDef(
+        storage, namespaceDefFilePath, testNamespaceName, namespaceDef);
     assertThat(namespaceDefFile.exists()).isTrue();
   }
 
@@ -127,32 +126,44 @@ public class TestObjectDefinitions {
     String lakehouseDefFilePath = FileLocations.newLakehouseDefFilePath();
     ObjectDefinitions.writeLakehouseDef(storage, lakehouseDefFilePath, lakehouseDef);
     String namespaceDefFilePath = FileLocations.newNamespaceDefFilePath(testNamespaceName);
-    ObjectDefinitions.writeNamespaceDef(storage, namespaceDefFilePath, testNamespaceName, namespaceDef);
+    ObjectDefinitions.writeNamespaceDef(
+        storage, namespaceDefFilePath, testNamespaceName, namespaceDef);
 
-    NamespaceDef testNamespaceDef = ObjectDefinitions.readNamespaceDef(storage, namespaceDefFilePath);
+    NamespaceDef testNamespaceDef =
+        ObjectDefinitions.readNamespaceDef(storage, namespaceDefFilePath);
     assertThat(testNamespaceDef).isEqualTo(namespaceDef);
   }
 
   @Test
   public void testWriteTableDef() {
-    ObjectDefinitions.writeLakehouseDef(storage, FileLocations.newLakehouseDefFilePath(), lakehouseDef);
-    ObjectDefinitions.writeNamespaceDef(storage, FileLocations.newNamespaceDefFilePath(testNamespaceName),
-            testNamespaceName, namespaceDef);
+    ObjectDefinitions.writeLakehouseDef(
+        storage, FileLocations.newLakehouseDefFilePath(), lakehouseDef);
+    ObjectDefinitions.writeNamespaceDef(
+        storage,
+        FileLocations.newNamespaceDefFilePath(testNamespaceName),
+        testNamespaceName,
+        namespaceDef);
     String tableDefFilePath = FileLocations.newTableDefFilePath(testNamespaceName, testTableName);
     File tableDefFile = new File(tempDir, tableDefFilePath);
 
     assertThat(tableDefFile.exists()).isFalse();
-    ObjectDefinitions.writeTableDef(storage, tableDefFilePath, testNamespaceName, testTableName, tableDef);
+    ObjectDefinitions.writeTableDef(
+        storage, tableDefFilePath, testNamespaceName, testTableName, tableDef);
     assertThat(tableDefFile.exists()).isTrue();
   }
 
   @Test
   public void testReadTableDef() {
-    ObjectDefinitions.writeLakehouseDef(storage, FileLocations.newLakehouseDefFilePath(), lakehouseDef);
-    ObjectDefinitions.writeNamespaceDef(storage, FileLocations.newNamespaceDefFilePath(testNamespaceName),
-            testNamespaceName, namespaceDef);
+    ObjectDefinitions.writeLakehouseDef(
+        storage, FileLocations.newLakehouseDefFilePath(), lakehouseDef);
+    ObjectDefinitions.writeNamespaceDef(
+        storage,
+        FileLocations.newNamespaceDefFilePath(testNamespaceName),
+        testNamespaceName,
+        namespaceDef);
     String tableDefFilePath = FileLocations.newTableDefFilePath(testNamespaceName, testTableName);
-    ObjectDefinitions.writeTableDef(storage, tableDefFilePath, testNamespaceName, testTableName, tableDef);
+    ObjectDefinitions.writeTableDef(
+        storage, tableDefFilePath, testNamespaceName, testTableName, tableDef);
 
     TableDef testTableDef = ObjectDefinitions.readTableDef(storage, tableDefFilePath);
     assertThat(testTableDef).isEqualTo(tableDef);
