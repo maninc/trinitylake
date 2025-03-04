@@ -38,13 +38,13 @@ public class TestObjectDefinitions {
   @TempDir private File tempDir;
   private LakehouseStorage storage;
 
-  private String testNamespaceName = "test-namespace";
-  private String testViewName = "test-view";
-  private String testTableName = "test-table";
+  private String testNamespaceName;
+  private String testViewName;
+  private String testTableName;
 
-  private LakehouseDef lakehouseDef = ObjectDefinitions.newLakehouseDefBuilder().build();
-  private NamespaceDef namespaceDef = ObjectDefinitions.newNamespaceDefBuilder().build();
-  private TableDef tableDef = ObjectDefinitions.newTableDefBuilder().build();
+  private LakehouseDef lakehouseDef;
+  private NamespaceDef namespaceDef;
+  private TableDef tableDef;
 
   private final ViewDef testViewDef =
       ObjectDefinitions.newViewDefBuilder()
